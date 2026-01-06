@@ -63,16 +63,12 @@ export default function Home() {
       <section 
         className="relative py-20 md:py-32 overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          backgroundImage: 'linear-gradient(rgba(195, 28, 54, 0.9), rgba(246, 68, 40, 0.85)), url("https://i.imgur.com/f7T6wX3.png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundBlendMode: 'multiply',
         }}
       >
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'url("https://i.imgur.com/f7T6wX3.png")',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }} />
-        </div>
         
         <div className="container-custom relative z-10">
           <div className="max-w-4xl mx-auto text-center text-white">
@@ -80,14 +76,14 @@ export default function Home() {
               <FaRocket className="text-3xl" />
             </div>
             <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-              Your Business Deserves a <span className="text-yellow-300">Professional Website</span>
+              Your Business Deserves a <span className="text-rocket-light">Professional Website</span>
             </h1>
-            <p className="text-xl md:text-2xl mb-8 text-white/90">
+            <p className="text-xl md:text-2xl mb-8 text-white/95">
               Custom websites built for home service businesses. Edit everything yourself with our easy-to-use app. No coding required.
             </p>
             <a 
               href="#get-started" 
-              className="inline-block bg-white text-purple-700 px-8 py-4 rounded-lg font-bold text-lg hover:bg-yellow-300 hover:text-purple-900 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
+              className="inline-block bg-white text-rocket-red px-8 py-4 rounded-lg font-bold text-lg hover:bg-rocket-light hover:text-rocket-orange transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
             >
               Get Your Website Built Today
             </a>
@@ -99,7 +95,7 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-gray-50">
+      <section id="features" className="py-20 bg-rocket-light">
         <div className="container-custom">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4 text-gray-900">
@@ -113,29 +109,29 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
-                icon: <FaPaintBrush className="text-3xl text-blue-600" />,
+                icon: <FaPaintBrush className="text-3xl text-rocket-red" />,
                 title: 'Custom Design',
                 description: 'Get a unique website designed specifically for your business and industry',
               },
               {
-                icon: <FaMobileAlt className="text-3xl text-blue-600" />,
+                icon: <FaMobileAlt className="text-3xl text-rocket-orange" />,
                 title: 'Easy Self-Editing',
                 description: 'Update your website anytime with our simple mobile app. No technical skills needed',
               },
               {
-                icon: <FaChartLine className="text-3xl text-blue-600" />,
+                icon: <FaChartLine className="text-3xl text-rocket-red" />,
                 title: 'Lead Generation',
                 description: 'Built-in contact forms and call-to-actions that convert visitors into customers',
               },
               {
-                icon: <FaCheckCircle className="text-3xl text-blue-600" />,
+                icon: <FaCheckCircle className="text-3xl text-rocket-orange" />,
                 title: 'Fully Optimized',
                 description: 'Fast loading, mobile-responsive, and search engine optimized out of the box',
               },
             ].map((feature, index) => (
               <div 
                 key={index}
-                className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200"
+                className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-t-4 border-rocket-red"
               >
                 <div className="mb-4">{feature.icon}</div>
                 <h3 className="text-xl font-bold mb-3 text-gray-900">{feature.title}</h3>
@@ -178,7 +174,7 @@ export default function Home() {
                 },
               ].map((step, index) => (
                 <div key={index} className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-700 text-white rounded-full text-2xl font-bold mb-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-rocket-red to-rocket-orange text-white rounded-full text-2xl font-bold mb-4">
                     {step.step}
                   </div>
                   <h3 className="text-xl font-bold mb-3 text-gray-900">{step.title}</h3>
@@ -191,7 +187,7 @@ export default function Home() {
       </section>
 
       {/* Sign Up Form Section */}
-      <section id="get-started" className="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+      <section id="get-started" className="py-20 bg-gradient-to-br from-rocket-light to-white">
         <div className="container-custom">
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-12">
@@ -215,7 +211,7 @@ export default function Home() {
                   </p>
                   <button
                     onClick={() => setSubmitStatus('idle')}
-                    className="text-blue-600 hover:text-blue-800 font-semibold"
+                    className="text-rocket-red hover:text-rocket-orange font-semibold"
                   >
                     Submit Another Request
                   </button>
@@ -308,7 +304,7 @@ export default function Home() {
                   </div>
 
                   {/* SMS Consent - Fully Compliant */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <div className="bg-red-50 border-2 border-rocket-red rounded-lg p-6">
                     <div className="flex items-start">
                       <input
                         type="checkbox"
@@ -316,7 +312,7 @@ export default function Home() {
                         required
                         checked={formData.smsConsent}
                         onChange={(e) => setFormData({ ...formData, smsConsent: e.target.checked })}
-                        className="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        className="mt-1 h-5 w-5 text-rocket-red focus:ring-rocket-orange border-gray-300 rounded"
                       />
                       <label htmlFor="smsConsent" className="ml-3 text-sm text-gray-700">
                         <span className="font-semibold text-gray-900">SMS Consent Required *</span>
@@ -327,10 +323,7 @@ export default function Home() {
                           Message frequency varies. Message and data rates may apply. You can reply STOP at any time to opt-out of receiving messages. Reply HELP for assistance.
                         </p>
                         <p className="mt-2">
-                          Your consent is not a condition of purchase. By providing your phone number and checking this box, you agree to our <a href="/terms" className="text-blue-600 hover:underline" target="_blank">Terms of Service</a> and <a href="/privacy" className="text-blue-600 hover:underline" target="_blank">Privacy Policy</a>.
-                        </p>
-                        <p className="mt-2 text-xs text-gray-600">
-                          Rocket Solutions LLC | 2855 Broome Rd. Gainesville, GA | Hall County, GA
+                          Your consent is not a condition of purchase. By providing your phone number and checking this box, you agree to our <a href="/terms" className="text-rocket-red hover:underline font-semibold" target="_blank">Terms of Service</a> and <a href="/privacy" className="text-rocket-red hover:underline font-semibold" target="_blank">Privacy Policy</a>.
                         </p>
                       </label>
                     </div>
@@ -351,7 +344,7 @@ export default function Home() {
                   </button>
 
                   <p className="text-sm text-gray-500 text-center">
-                    By submitting this form, you agree to our <a href="/terms" className="text-blue-600 hover:underline">Terms of Service</a> and <a href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</a>.
+                    By submitting this form, you agree to our <a href="/terms" className="text-rocket-red hover:underline font-semibold">Terms of Service</a> and <a href="/privacy" className="text-rocket-red hover:underline font-semibold">Privacy Policy</a>.
                   </p>
                 </form>
               )}
