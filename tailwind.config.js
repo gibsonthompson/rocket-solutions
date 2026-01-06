@@ -8,9 +8,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'rocket-blue': '#0066FF',
-        'rocket-dark': '#0A1628',
-        'rocket-light': '#F8FAFC',
+        'rocket-red': '#c31c36',
+        'rocket-orange': '#f64428',
+        'rocket-light': '#efeeed',
+        'rocket-dark': '#1a1a1a',
       },
       fontFamily: {
         sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],

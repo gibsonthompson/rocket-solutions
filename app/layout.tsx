@@ -28,15 +28,15 @@ export default function RootLayout({
                   height={40}
                   className="w-10 h-10"
                 />
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                <span className="text-2xl font-bold bg-gradient-to-r from-rocket-red to-rocket-orange bg-clip-text text-transparent">
                   Rocket Solutions
                 </span>
               </Link>
               <div className="hidden md:flex items-center space-x-8">
-                <Link href="#features" className="text-gray-700 hover:text-blue-600 transition-colors">
+                <Link href="#features" className="text-gray-700 hover:text-rocket-red transition-colors font-medium">
                   Features
                 </Link>
-                <Link href="#how-it-works" className="text-gray-700 hover:text-blue-600 transition-colors">
+                <Link href="#how-it-works" className="text-gray-700 hover:text-rocket-red transition-colors font-medium">
                   How It Works
                 </Link>
                 <Link href="#get-started" className="btn-primary">
