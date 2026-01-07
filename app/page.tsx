@@ -19,11 +19,6 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.smsConsent) {
-      setErrorMessage('Please consent to receive SMS messages to continue.')
-      return
-    }
-
     setIsSubmitting(true)
     setErrorMessage('')
 
@@ -120,8 +115,8 @@ export default function Home() {
               },
               {
                 icon: <FaChartLine className="text-3xl text-rocket-red" />,
-                title: 'Lead Generation',
-                description: 'Built-in contact forms and call-to-actions that convert visitors into customers',
+                title: 'Customer Communication',
+                description: 'Stay connected with your customers through built-in contact forms and communication tools',
               },
               {
                 icon: <FaCheckCircle className="text-3xl text-rocket-orange" />,
@@ -303,19 +298,18 @@ export default function Home() {
                     </select>
                   </div>
 
-                  {/* SMS Consent - Fully Compliant */}
+                  {/* SMS Consent - Optional */}
                   <div className="bg-red-50 border-2 border-rocket-red rounded-lg p-6">
                     <div className="flex items-start">
                       <input
                         type="checkbox"
                         id="smsConsent"
-                        required
                         checked={formData.smsConsent}
                         onChange={(e) => setFormData({ ...formData, smsConsent: e.target.checked })}
                         className="mt-1 h-5 w-5 text-rocket-red focus:ring-rocket-orange border-gray-300 rounded"
                       />
                       <label htmlFor="smsConsent" className="ml-3 text-sm text-gray-700">
-                        <span className="font-semibold text-gray-900">SMS Consent Required *</span>
+                        <span className="font-semibold text-gray-900">SMS Updates (Optional)</span>
                         <p className="mt-2">
                           By checking this box and providing your phone number, you consent to receive automated text messages from Rocket Solutions LLC at the phone number provided. These messages may include account updates, transactional notifications, and important information about your website and services.
                         </p>

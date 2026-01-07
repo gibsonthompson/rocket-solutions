@@ -87,6 +87,17 @@ export default function PrivacyPage() {
               <li>Legal authorities when required by law</li>
               <li>Potential buyers in a business transfer or acquisition</li>
             </ul>
+
+            <h3 className="text-xl font-semibold mb-3 mt-6 text-gray-900">SMS Opt-In Data Protection</h3>
+            <p className="font-semibold">
+              Your mobile information will not be sold or shared with third parties for promotional or marketing purposes.
+            </p>
+            <p className="mt-4">
+              All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.
+            </p>
+            <p className="mt-4">
+              We will not share your opt-in to an SMS campaign with any third party for purposes unrelated to providing you with the services of that campaign. We may share your Personal Data, including your SMS opt-in or consent status, with third parties that help us provide our messaging services, including but not limited to platform providers, phone companies, and any other vendors who assist us in the delivery of text messages.
+            </p>
           </section>
 
           <section>
