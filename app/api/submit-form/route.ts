@@ -6,9 +6,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { fullName, businessName, phone, email, industry, smsConsent } = body
 
-    if (!fullName || !businessName || !phone || !email || !industry || !smsConsent) {
+    // Only require name, business, email, and industry - phone and SMS consent are OPTIONAL
+    if (!fullName || !businessName || !email || !industry) {
       return NextResponse.json(
-        { error: 'All fields are required' },
+        { error: 'Please fill in all required fields' },
         { status: 400 }
       )
     }
@@ -22,10 +23,10 @@ export async function POST(request: NextRequest) {
         {
           full_name: fullName,
           business_name: businessName,
-          phone: phone,
+          phone: phone || null,
           email: email,
           industry: industry,
-          sms_consent: smsConsent,
+          sms_consent: smsConsent || false,
           ip_address: ip_address,
           user_agent: user_agent,
         },

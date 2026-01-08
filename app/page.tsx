@@ -245,12 +245,11 @@ export default function Home() {
 
                   <div>
                     <label htmlFor="phone" className="label-text">
-                      Phone Number *
+                      Phone Number (Optional - for SMS updates)
                     </label>
                     <input
                       type="tel"
                       id="phone"
-                      required
                       className="input-field"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
