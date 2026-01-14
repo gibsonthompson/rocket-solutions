@@ -23,6 +23,62 @@ function generatePassword() {
   return password
 }
 
+async function uploadLogoToStorage(base64Data, companySlug) {
+  try {
+    // Check if it's already a URL (not base64)
+    if (base64Data.startsWith('http://') || base64Data.startsWith('https://')) {
+      return base64Data
+    }
+    
+    // Check if it's a base64 data URL
+    if (!base64Data.startsWith('data:image/')) {
+      console.error('Invalid logo format - not a data URL or http URL')
+      return ''
+    }
+    
+    // Parse the base64 data URL
+    const matches = base64Data.match(/^data:image\/(\w+);base64,(.+)$/)
+    if (!matches) {
+      console.error('Could not parse base64 data URL')
+      return ''
+    }
+    
+    const imageType = matches[1] // jpeg, png, etc.
+    const base64String = matches[2]
+    
+    // Convert base64 to buffer
+    const buffer = Buffer.from(base64String, 'base64')
+    
+    // Generate unique filename
+    const fileName = `logos/${companySlug}-logo-${Date.now()}.${imageType}`
+    
+    // Upload to Supabase Storage
+    const { data, error } = await supabaseAdmin.storage
+      .from('company-assets')
+      .upload(fileName, buffer, {
+        contentType: `image/${imageType}`,
+        upsert: true
+      })
+    
+    if (error) {
+      console.error('Error uploading logo to storage:', error)
+      return ''
+    }
+    
+    // Get public URL
+    const { data: urlData } = supabaseAdmin.storage
+      .from('company-assets')
+      .getPublicUrl(fileName)
+    
+    console.log('Logo uploaded successfully:', urlData.publicUrl)
+    return urlData.publicUrl
+    
+  } catch (err) {
+    console.error('Error in uploadLogoToStorage:', err)
+    return ''
+  }
+}
+
 export async function POST(request) {
   const body = await request.text()
   const signature = headers().get('stripe-signature')
@@ -53,6 +109,10 @@ export async function POST(request) {
         const tempPassword = generatePassword()
         const passwordHash = await bcrypt.hash(tempPassword, 10)
         
+        // Upload logo to storage (handles both base64 and existing URLs)
+        const logoSource = additionalData.logoPreview || additionalData.logoUrl || ''
+        const logoUrl = await uploadLogoToStorage(logoSource, companySlug)
+        
         // Insert into junk_companies (what Junk Line template reads)
         const { data: company, error } = await supabaseAdmin
           .from('junk_companies')
@@ -66,20 +126,14 @@ export async function POST(request) {
             industry: industry || 'Home Services',
             primary_color: additionalData.primaryColor || '#3B82F6',
             secondary_color: additionalData.logoBackgroundColor || '#1f2937',
-            logo_url: additionalData.logoUrl || '',
-            hero_headline: `Professional ${industry || 'Services'} in ${city || 'Your Area'}`,
-            hero_subheadline: additionalData.tagline || `Quality ${industry?.toLowerCase() || 'services'} you can trust.`,
-            hero_features: JSON.stringify([
-              'Licensed & Insured',
-              'Free Estimates', 
-              'Same-Day Service Available'
-            ]),
-            service_areas: JSON.stringify([
-              { county: `${city} Area`, cities: [city, 'Surrounding Areas'] }
-            ]),
-            google_rating: '5.0',
-            google_review_count: '0',
-            is_active: true,
+            logo_url: logoUrl,
+            logo_background_color: additionalData.logoBackgroundColor || '',
+            tagline: additionalData.tagline || '',
+            service_radius: additionalData.serviceRadius || 25,
+            plan: plan || 'starter',
+            status: 'active',
+            stripe_customer_id: session.customer,
+            stripe_subscription_id: session.subscription,
             dashboard_password_hash: passwordHash,
           })
           .select()
@@ -113,8 +167,11 @@ export async function POST(request) {
 ===== NEW SITE CREATED =====
 Business: ${businessName}
 Slug: ${companySlug}
-URL: https://${companySlug}.rocketsites.io
+URL: https://${companySlug}.gorocketsolutions.com
+Dashboard: https://gorocketsolutions.com/dashboard
+Email: ${session.customer_email}
 Temp Password: ${tempPassword}
+Logo URL: ${logoUrl}
 ============================
         `)
 
@@ -123,11 +180,12 @@ Temp Password: ${tempPassword}
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object
+        const newStatus = subscription.status === 'active' ? 'active' : 'paused'
         
         await supabaseAdmin
           .from('rocket_sites')
           .update({ 
-            status: subscription.status === 'active' ? 'active' : 'paused',
+            status: newStatus,
             updated_at: new Date().toISOString()
           })
           .eq('stripe_subscription_id', subscription.id)
@@ -141,7 +199,7 @@ Temp Password: ${tempPassword}
         if (site?.junk_company_id) {
           await supabaseAdmin
             .from('junk_companies')
-            .update({ is_active: subscription.status === 'active' })
+            .update({ status: newStatus })
             .eq('id', site.junk_company_id)
         }
         
@@ -168,7 +226,7 @@ Temp Password: ${tempPassword}
         if (site?.junk_company_id) {
           await supabaseAdmin
             .from('junk_companies')
-            .update({ is_active: false })
+            .update({ status: 'cancelled' })
             .eq('id', site.junk_company_id)
         }
 
@@ -191,7 +249,7 @@ Temp Password: ${tempPassword}
         if (site?.junk_company_id) {
           await supabaseAdmin
             .from('junk_companies')
-            .update({ is_active: false })
+            .update({ status: 'paused' })
             .eq('id', site.junk_company_id)
         }
 
