@@ -1,87 +1,22 @@
-import Stripe from 'stripe'
-import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { headers } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
+import Stripe from 'stripe'
 import bcrypt from 'bcryptjs'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
-function generateSlug(businessName) {
-  return businessName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 50) + '-' + Date.now().toString(36)
-}
-
-function generatePassword() {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let password = ''
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return password
-}
-
-async function uploadLogoToStorage(base64Data, companySlug) {
-  try {
-    // Check if it's already a URL (not base64)
-    if (base64Data.startsWith('http://') || base64Data.startsWith('https://')) {
-      return base64Data
-    }
-    
-    // Check if it's a base64 data URL
-    if (!base64Data.startsWith('data:image/')) {
-      console.error('Invalid logo format - not a data URL or http URL')
-      return ''
-    }
-    
-    // Parse the base64 data URL
-    const matches = base64Data.match(/^data:image\/(\w+);base64,(.+)$/)
-    if (!matches) {
-      console.error('Could not parse base64 data URL')
-      return ''
-    }
-    
-    const imageType = matches[1] // jpeg, png, etc.
-    const base64String = matches[2]
-    
-    // Convert base64 to buffer
-    const buffer = Buffer.from(base64String, 'base64')
-    
-    // Generate unique filename
-    const fileName = `logos/${companySlug}-logo-${Date.now()}.${imageType}`
-    
-    // Upload to Supabase Storage
-    const { data, error } = await supabaseAdmin.storage
-      .from('company-assets')
-      .upload(fileName, buffer, {
-        contentType: `image/${imageType}`,
-        upsert: true
-      })
-    
-    if (error) {
-      console.error('Error uploading logo to storage:', error)
-      return ''
-    }
-    
-    // Get public URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from('company-assets')
-      .getPublicUrl(fileName)
-    
-    console.log('Logo uploaded successfully:', urlData.publicUrl)
-    return urlData.publicUrl
-    
-  } catch (err) {
-    console.error('Error in uploadLogoToStorage:', err)
-    return ''
-  }
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
 }
 
 export async function POST(request) {
   const body = await request.text()
-  const signature = headers().get('stripe-signature')
+  const headersList = headers()
+  const signature = headersList.get('stripe-signature')
 
   let event
 
@@ -96,170 +31,231 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
+  // Handle the checkout.session.completed event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object
+
+    try {
+      await handleCheckoutComplete(session)
+    } catch (error) {
+      console.error('Error handling checkout:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+  }
+
+  // Handle subscription updates (for future use)
+  if (event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object
+    await handleSubscriptionUpdate(subscription)
+  }
+
+  // Handle subscription cancellation
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object
+    await handleSubscriptionCancelled(subscription)
+  }
+
+  return NextResponse.json({ received: true })
+}
+
+async function handleCheckoutComplete(session) {
+  const supabase = getSupabase()
+  
+  // Get metadata from checkout session
+  const {
+    company_id,
+    company_name,
+    owner_name,
+    email,
+    phone,
+    city,
+    state,
+    industry,
+    tagline,
+    primary_color,
+    logo_background_color,
+    logo_url,
+    service_radius,
+    plan
+  } = session.metadata || {}
+
+  if (!company_id) {
+    throw new Error('No company_id in session metadata')
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FIX: Fetch existing record to preserve the slug
+  // ═══════════════════════════════════════════════════════════════
+  const { data: existingCompany, error: fetchError } = await supabase
+    .from('junk_companies')
+    .select('id, company_slug')
+    .eq('id', company_id)
+    .single()
+
+  if (fetchError || !existingCompany) {
+    console.error('Company not found:', company_id, fetchError)
+    throw new Error(`Company not found: ${company_id}`)
+  }
+
+  // Use EXISTING slug from database, fall back to metadata, then generate as last resort
+  const subdomain = existingCompany.company_slug 
+    || session.metadata.company_slug 
+    || generateSubdomain(company_name)
+
+  console.log('Using subdomain:', subdomain, '(from existing record)')
+
+  // Generate temporary password
+  const tempPassword = generateTempPassword()
+  const hashedPassword = await bcrypt.hash(tempPassword, 10)
+
+  // Update company record
+  // IMPORTANT: DO NOT overwrite company_slug or logo_url - they're already saved during preview
+  const { data: company, error: updateError } = await supabase
+    .from('junk_companies')
+    .update({
+      company_name,
+      // company_slug: PRESERVED - already set during preview, don't overwrite
+      // logo_url: PRESERVED - already saved during preview (too large for Stripe metadata)
+      owner_name,
+      email,
+      phone,
+      city,
+      state,
+      industry: industry || 'Junk Removal',
+      tagline,
+      primary_color: primary_color || '#3B82F6',
+      logo_background_color: logo_background_color || '#020202',
+      service_radius: parseInt(service_radius) || 25,
+      plan: plan || 'starter',
+      stripe_customer_id: session.customer,
+      stripe_subscription_id: session.subscription,
+      dashboard_password_hash: hashedPassword,  // Login checks this column
+      temp_password: tempPassword, // Store plain password temporarily for success page
+      is_active: true,
+      status: 'active',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', company_id)
+    .select()
+    .single()
+
+  if (updateError) {
+    console.error('Failed to update company:', updateError)
+    throw updateError
+  }
+
+  // Provision the subdomain (Cloudflare DNS + Vercel domain)
+  const provisionResult = await provisionSubdomain(company_id, subdomain)
+  
+  if (!provisionResult.success) {
+    console.error('Subdomain provisioning failed:', provisionResult.error)
+    // Don't throw - company is created, just log the issue
+  }
+
+  // Log the result (replace with email sending later)
+  console.log('═══════════════════════════════════════')
+  console.log('✅ NEW CUSTOMER SETUP COMPLETE')
+  console.log('═══════════════════════════════════════')
+  console.log(`Company: ${company_name}`)
+  console.log(`Email: ${email}`)
+  console.log(`Plan: ${plan}`)
+  console.log(`Subdomain: ${subdomain}.gorocketsolutions.com`)
+  console.log(`Temp Password: ${tempPassword}`)
+  console.log(`Dashboard: https://${subdomain}.gorocketsolutions.com/dashboard`)
+  console.log('═══════════════════════════════════════')
+
+  // TODO: Send welcome email with credentials
+  // await sendWelcomeEmail({
+  //   to: email,
+  //   companyName: company_name,
+  //   subdomain,
+  //   tempPassword,
+  //   dashboardUrl: `https://${subdomain}.gorocketsolutions.com/dashboard`
+  // })
+
+  return { success: true, subdomain, company }
+}
+
+async function handleSubscriptionUpdate(subscription) {
+  // Find company by stripe_subscription_id and update status
+  const supabase = getSupabase()
+  const { error } = await supabase
+    .from('junk_companies')
+    .update({
+      status: subscription.status,
+      updated_at: new Date().toISOString()
+    })
+    .eq('stripe_subscription_id', subscription.id)
+
+  if (error) {
+    console.error('Failed to update subscription status:', error)
+  }
+}
+
+async function handleSubscriptionCancelled(subscription) {
+  // Deactivate the company
+  const supabase = getSupabase()
+  const { error } = await supabase
+    .from('junk_companies')
+    .update({
+      is_active: false,
+      status: 'cancelled',
+      updated_at: new Date().toISOString()
+    })
+    .eq('stripe_subscription_id', subscription.id)
+
+  if (error) {
+    console.error('Failed to handle subscription cancellation:', error)
+  }
+}
+
+async function provisionSubdomain(companyId, subdomain) {
+  const PROVISION_API_URL = process.env.PROVISION_API_URL || 'https://junklinellc.com/api/provision-subdomain'
+  const PROVISION_API_SECRET = process.env.PROVISION_API_SECRET
+
+  if (!PROVISION_API_SECRET) {
+    return { success: false, error: 'PROVISION_API_SECRET not configured' }
+  }
+
   try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object
-        
-        const { plan, businessName, industry, phone, city, state } = session.metadata
-        const siteDataJson = session.metadata.siteDataJson
-        const additionalData = siteDataJson ? JSON.parse(siteDataJson) : {}
-        
-        const companySlug = generateSlug(businessName)
-        const tempPassword = generatePassword()
-        const passwordHash = await bcrypt.hash(tempPassword, 10)
-        
-        // Upload logo to storage (handles both base64 and existing URLs)
-        const logoSource = additionalData.logoPreview || additionalData.logoUrl || ''
-        const logoUrl = await uploadLogoToStorage(logoSource, companySlug)
-        
-        // Insert into junk_companies (what Junk Line template reads)
-        const { data: company, error } = await supabaseAdmin
-          .from('junk_companies')
-          .insert({
-            company_name: businessName,
-            company_slug: companySlug,
-            phone: phone || '',
-            email: session.customer_email,
-            city: city || '',
-            state: state || '',
-            industry: industry || 'Home Services',
-            primary_color: additionalData.primaryColor || '#3B82F6',
-            secondary_color: additionalData.logoBackgroundColor || '#1f2937',
-            logo_url: logoUrl,
-            logo_background_color: additionalData.logoBackgroundColor || '',
-            tagline: additionalData.tagline || '',
-            service_radius: additionalData.serviceRadius || 25,
-            plan: plan || 'starter',
-            status: 'active',
-            stripe_customer_id: session.customer,
-            stripe_subscription_id: session.subscription,
-            dashboard_password_hash: passwordHash,
-          })
-          .select()
-          .single()
+    const response = await fetch(PROVISION_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${PROVISION_API_SECRET}`
+      },
+      body: JSON.stringify({ companyId, subdomain })
+    })
 
-        if (error) {
-          console.error('Error creating company:', error)
-          throw error
-        }
+    const data = await response.json()
 
-        // Also track in rocket_sites for billing
-        await supabaseAdmin
-          .from('rocket_sites')
-          .insert({
-            stripe_customer_id: session.customer,
-            stripe_subscription_id: session.subscription,
-            plan,
-            status: 'active',
-            business_name: businessName,
-            industry,
-            email: session.customer_email,
-            phone,
-            city,
-            state,
-            company_slug: companySlug,
-            junk_company_id: company.id,
-          })
-
-        // Log for now - later send email
-        console.log(`
-===== NEW SITE CREATED =====
-Business: ${businessName}
-Slug: ${companySlug}
-URL: https://${companySlug}.gorocketsolutions.com
-Dashboard: https://gorocketsolutions.com/dashboard
-Email: ${session.customer_email}
-Temp Password: ${tempPassword}
-Logo URL: ${logoUrl}
-============================
-        `)
-
-        break
-      }
-
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object
-        const newStatus = subscription.status === 'active' ? 'active' : 'paused'
-        
-        await supabaseAdmin
-          .from('rocket_sites')
-          .update({ 
-            status: newStatus,
-            updated_at: new Date().toISOString()
-          })
-          .eq('stripe_subscription_id', subscription.id)
-
-        const { data: site } = await supabaseAdmin
-          .from('rocket_sites')
-          .select('junk_company_id')
-          .eq('stripe_subscription_id', subscription.id)
-          .single()
-          
-        if (site?.junk_company_id) {
-          await supabaseAdmin
-            .from('junk_companies')
-            .update({ status: newStatus })
-            .eq('id', site.junk_company_id)
-        }
-        
-        break
-      }
-
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object
-        
-        const { data: site } = await supabaseAdmin
-          .from('rocket_sites')
-          .select('id, junk_company_id')
-          .eq('stripe_subscription_id', subscription.id)
-          .single()
-
-        await supabaseAdmin
-          .from('rocket_sites')
-          .update({ 
-            status: 'cancelled',
-            updated_at: new Date().toISOString()
-          })
-          .eq('stripe_subscription_id', subscription.id)
-
-        if (site?.junk_company_id) {
-          await supabaseAdmin
-            .from('junk_companies')
-            .update({ status: 'cancelled' })
-            .eq('id', site.junk_company_id)
-        }
-
-        break
-      }
-
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object
-        
-        const { data: site } = await supabaseAdmin
-          .from('rocket_sites')
-          .update({ 
-            status: 'paused',
-            updated_at: new Date().toISOString()
-          })
-          .eq('stripe_customer_id', invoice.customer)
-          .select('junk_company_id')
-          .single()
-
-        if (site?.junk_company_id) {
-          await supabaseAdmin
-            .from('junk_companies')
-            .update({ status: 'paused' })
-            .eq('id', site.junk_company_id)
-        }
-
-        break
-      }
+    if (!response.ok) {
+      return { success: false, error: data.error || 'Provision API failed' }
     }
 
-    return NextResponse.json({ received: true })
+    return { success: true, data }
   } catch (error) {
-    console.error('Webhook error:', error)
-    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
+    return { success: false, error: error.message }
   }
+}
+
+function generateSubdomain(businessName) {
+  if (!businessName) return `site-${Date.now()}`
+  
+  // Convert to lowercase, replace spaces and special chars with hyphens
+  let slug = businessName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .substring(0, 30) // Keep it reasonable length
+
+  // Add random suffix to ensure uniqueness
+  const suffix = Math.random().toString(36).substring(2, 8)
+  
+  return `${slug}-${suffix}`
+}
+
+function generateTempPassword() {
+  // Generate a simple 6-digit PIN
+  return Math.floor(100000 + Math.random() * 900000).toString()
 }

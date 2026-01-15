@@ -1,4 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
+import { getServiceAreasForCity } from '@/lib/geoUtils'
+import { generateServiceAreaContent } from '@/lib/generateServiceAreaContent'
+import citiesData from '@/lib/us-cities.json'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -92,6 +95,42 @@ export async function POST(request) {
     
     const companySlug = `${baseSlug}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`
 
+    // === AUTO-POPULATE SERVICE AREAS ===
+    let serviceAreas = null
+    const radiusMiles = parseInt(serviceRadius) || 25
+    
+    const geoResult = getServiceAreasForCity(city, state, radiusMiles, citiesData)
+    
+    if (geoResult) {
+      // Generate unique SEO content for each city
+      console.log(`Generating unique content for ${geoResult.citiesFound} cities...`)
+      serviceAreas = await generateServiceAreaContent(
+        businessName,
+        industry,
+        city,
+        state,
+        geoResult.serviceAreas
+      )
+      console.log(`Service areas generated with unique content for ${geoResult.citiesFound} cities within ${radiusMiles} miles of ${city}, ${state}`)
+    } else {
+      // Fallback: create a single entry with just the input city
+      console.log(`City not found in database: ${city}, ${state}. Using fallback.`)
+      const fallbackSlug = city.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      serviceAreas = [{ 
+        county: 'Service Area', 
+        cities: [{
+          name: city,
+          slug: fallbackSlug,
+          meta_title: `${industry} in ${city}, ${state} | ${businessName}`,
+          meta_description: `Professional ${industry.toLowerCase()} services in ${city}, ${state}. Fast, reliable service. Call today for a free estimate.`,
+          intro: `${businessName} proudly serves ${city} and the surrounding area with professional ${industry.toLowerCase()} services. Contact us today to learn more.`,
+          neighborhoods: [],
+          zip_codes: []
+        }]
+      }]
+    }
+    // === END SERVICE AREAS ===
+
     // Check if any entry already exists for this email (preview or otherwise)
     const { data: existingPreview } = await supabase
       .from('junk_companies')
@@ -115,6 +154,7 @@ export async function POST(request) {
           city,
           state,
           service_radius: serviceRadius,
+          service_areas: serviceAreas,  // Add service areas with content
           logo_url: logoPreview,  // base64 from onboarding
           logo_background_color: logoBackgroundColor,
           primary_color: primaryColor || '#3B82F6',
@@ -147,6 +187,7 @@ export async function POST(request) {
           city,
           state,
           service_radius: serviceRadius,
+          service_areas: serviceAreas,  // Add service areas with content
           logo_url: logoPreview,  // base64 from onboarding
           logo_background_color: logoBackgroundColor,
           primary_color: primaryColor || '#3B82F6',
@@ -211,13 +252,17 @@ export async function POST(request) {
       ? `http://localhost:3001?slug=${finalSlug}`
       : `https://service-business-platform.vercel.app?slug=${finalSlug}`
 
+    // Count total cities across all areas
+    const totalCities = serviceAreas?.reduce((sum, area) => sum + area.cities.length, 0) || 0
+
     return Response.json({
       success: true,
       companySlug: finalSlug,
       siteId: companyId,
       previewUrl,
       servicesCreated: serviceInserts.length,
-      testimonialsCreated: testimonialInserts.length
+      testimonialsCreated: testimonialInserts.length,
+      serviceAreasGenerated: totalCities
     })
 
   } catch (error) {

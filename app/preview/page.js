@@ -1,38 +1,53 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FaClock, FaCheck, FaLock, FaEye, FaSpinner } from 'react-icons/fa'
+import TourOverlay from '../components/TourOverlay'
 
 export default function PreviewPage() {
   const router = useRouter()
+  const iframeRef = useRef(null)
+  
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [previewData, setPreviewData] = useState(null)
   const [companySlug, setCompanySlug] = useState(null)
   
-  // Timer and paywall state
-  const [timeLeft, setTimeLeft] = useState(180) // 3 minutes initial
+  // Timer state
+  const [timeLeft, setTimeLeft] = useState(180) // 3 minutes
+  const [timerActive, setTimerActive] = useState(false) // Timer starts PAUSED
+  
+  // Paywall state
   const [showPaywall, setShowPaywall] = useState(false)
   const [secondLook, setSecondLook] = useState(false)
   const [finalPaywall, setFinalPaywall] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  
+  // Tour state
+  const [showTour, setShowTour] = useState(true)
+
+  // Prevent double initialization
+  const initializingRef = useRef(false)
+  const initializedRef = useRef(false)
 
   // Junk-line URL
   const JUNKLINE_URL = 'https://service-business-platform.vercel.app'
 
   useEffect(() => {
+    if (initializingRef.current || initializedRef.current) return
+    initializingRef.current = true
     initializePreview()
   }, [])
 
-  // Timer logic with second look support
+  // Timer logic - only runs when timerActive is true
   useEffect(() => {
+    if (!timerActive) return
+    
     if (timeLeft <= 0) {
       if (!secondLook) {
-        // First time timer expires → show paywall with "one more look" option
         setShowPaywall(true)
       } else {
-        // Second look expired → show final paywall (no "one more look" option)
         setFinalPaywall(true)
         setShowPaywall(true)
       }
@@ -44,11 +59,10 @@ export default function PreviewPage() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft, secondLook])
+  }, [timeLeft, timerActive, secondLook])
 
   const initializePreview = async () => {
     try {
-      // Get data from sessionStorage (set by onboarding)
       const storedData = sessionStorage.getItem('previewData')
       if (!storedData) {
         setError('No preview data found. Please complete onboarding first.')
@@ -58,8 +72,26 @@ export default function PreviewPage() {
 
       const data = JSON.parse(storedData)
       setPreviewData(data)
+      
+      // Check if tour was already completed/skipped
+      const tourDone = sessionStorage.getItem('tour_completed') || sessionStorage.getItem('tour_skipped')
+      if (tourDone) {
+        setShowTour(false)
+        setTimerActive(true) // Start timer if tour already done
+      }
 
-      // Always call API to sync latest data (logo, colors, etc may have changed)
+      // Check if we already have a slug from a previous visit
+      const existingSlug = sessionStorage.getItem('previewSlug')
+      const existingSiteId = sessionStorage.getItem('previewSiteId')
+      
+      if (existingSlug && existingSiteId) {
+        setCompanySlug(existingSlug)
+        initializedRef.current = true
+        setIsLoading(false)
+        return
+      }
+
+      // Call API to create/update preview
       const response = await fetch('/api/sites/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,15 +106,17 @@ export default function PreviewPage() {
       const result = await response.json()
       setCompanySlug(result.companySlug)
       
-      // Store slug and siteId
       sessionStorage.setItem('previewSlug', result.companySlug)
       sessionStorage.setItem('previewSiteId', result.siteId)
+      
+      initializedRef.current = true
 
     } catch (err) {
       console.error('Preview init error:', err)
       setError(err.message)
     } finally {
       setIsLoading(false)
+      initializingRef.current = false
     }
   }
 
@@ -96,13 +130,15 @@ export default function PreviewPage() {
   const handleOneMoreLook = () => {
     setShowPaywall(false)
     setSecondLook(true)
-    setTimeLeft(60) // 60 seconds for second look
+    setTimeLeft(60)
+    setTimerActive(true)
   }
 
   const handleCheckout = async (plan = 'pro') => {
     setCheckoutLoading(true)
     try {
       const siteId = sessionStorage.getItem('previewSiteId')
+      const slug = sessionStorage.getItem('previewSlug') || companySlug
       
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -112,7 +148,7 @@ export default function PreviewPage() {
           siteData: {
             ...previewData,
             siteId,
-            companySlug
+            companySlug: slug
           }
         })
       })
@@ -127,6 +163,24 @@ export default function PreviewPage() {
     } finally {
       setCheckoutLoading(false)
     }
+  }
+
+  // Tour handlers
+  const handleTourComplete = () => {
+    // "See Plans" was clicked - show paywall immediately, start timer
+    setShowTour(false)
+    setTimerActive(true)
+    setShowPaywall(true) // Show paywall right away
+  }
+
+  const handleTourSkip = () => {
+    setShowTour(false)
+    setTimerActive(true) // Start timer
+  }
+
+  const handleTourMinimize = () => {
+    // User wants to explore on their own - start timer
+    setTimerActive(true)
   }
 
   // Loading state
@@ -172,21 +226,23 @@ export default function PreviewPage() {
     <div className="relative w-full h-screen overflow-hidden">
       {/* Timer Banner */}
       <div 
-        className="fixed top-0 left-0 right-0 z-40 py-2.5 px-4 text-center text-white text-sm font-medium shadow-lg"
-        style={{ backgroundColor: timeLeft <= 30 ? '#dc2626' : primaryColor }}
+        className="fixed top-0 left-0 right-0 z-50 py-2.5 px-4 text-center text-white text-sm font-medium shadow-lg"
+        style={{ backgroundColor: timerActive && timeLeft <= 30 ? '#dc2626' : primaryColor }}
       >
         <div className="flex items-center justify-center gap-3 max-w-4xl mx-auto">
-          <FaClock className={timeLeft <= 30 ? 'animate-pulse' : ''} />
+          <FaClock className={timerActive && timeLeft <= 30 ? 'animate-pulse' : ''} />
           <span className="hidden sm:inline">
-            {timeLeft > 0 
-              ? `Preview expires in ${formatTime(timeLeft)} — Your site is ready to launch!`
-              : 'Preview expired!'
+            {!timerActive 
+              ? `Welcome! Let's take a quick tour of your new website`
+              : timeLeft > 0 
+                ? `Preview expires in ${formatTime(timeLeft)} — Your site is ready to launch!`
+                : 'Preview expired!'
             }
           </span>
           <span className="sm:hidden">
-            {timeLeft > 0 ? formatTime(timeLeft) : 'Expired'}
+            {!timerActive ? 'Taking the tour...' : (timeLeft > 0 ? formatTime(timeLeft) : 'Expired')}
           </span>
-          {timeLeft > 0 && (
+          {timerActive && timeLeft > 0 && (
             <button 
               onClick={() => handleCheckout('pro')}
               disabled={checkoutLoading}
@@ -200,10 +256,23 @@ export default function PreviewPage() {
 
       {/* Junk-line iframe */}
       <iframe
+        ref={iframeRef}
         src={`${JUNKLINE_URL}?slug=${companySlug}`}
         className="w-full h-full border-0 pt-12"
         title="Website Preview"
+        style={{ position: 'relative', zIndex: 1 }}
       />
+
+      {/* Tour Overlay */}
+      {showTour && !isLoading && companySlug && (
+        <TourOverlay 
+          primaryColor={primaryColor}
+          onComplete={handleTourComplete}
+          onSkip={handleTourSkip}
+          onMinimize={handleTourMinimize}
+          iframeRef={iframeRef}
+        />
+      )}
 
       {/* Paywall Modal */}
       <AnimatePresence>
@@ -230,12 +299,12 @@ export default function PreviewPage() {
                 <FaLock className="text-2xl" style={{ color: primaryColor }} />
               </div>
               
-              {/* Title - changes based on finalPaywall */}
+              {/* Title */}
               <h2 className="text-2xl font-bold text-gray-800 mb-2">
                 {finalPaywall ? 'Your Preview Has Expired' : 'Like What You See?'}
               </h2>
               
-              {/* Subtitle - changes based on finalPaywall */}
+              {/* Subtitle */}
               <p className="text-gray-600 mb-6">
                 {finalPaywall 
                   ? 'Choose a plan to launch your website today!'
@@ -269,7 +338,7 @@ export default function PreviewPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <FaCheck className="text-green-500" />
-                    <span>6 pages ready to go live</span>
+                    <span>Up to 20 pages ready to go live</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <FaCheck className="text-green-500" />
@@ -316,7 +385,7 @@ export default function PreviewPage() {
                   </button>
                 )}
 
-                {/* PRO PLAN - Always shown */}
+                {/* PRO PLAN */}
                 <button
                   onClick={() => handleCheckout('pro')}
                   disabled={checkoutLoading}
@@ -352,7 +421,7 @@ export default function PreviewPage() {
                   </div>
                 </button>
 
-                {/* STARTER PLAN - Always shown */}
+                {/* STARTER PLAN */}
                 <button
                   onClick={() => handleCheckout('starter')}
                   disabled={checkoutLoading}
@@ -379,7 +448,7 @@ export default function PreviewPage() {
                 </button>
               </div>
 
-              {/* ONE MORE LOOK - Only shown on FIRST paywall (not finalPaywall) */}
+              {/* ONE MORE LOOK - Only shown on FIRST paywall */}
               {!finalPaywall && (
                 <button
                   onClick={handleOneMoreLook}
