@@ -196,30 +196,34 @@ export default function TourOverlay({ primaryColor, onComplete, onSkip, onMinimi
         }}
       >
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
-          {/* Header */}
+          {/* Header - FIXED: Removed truncate, adjusted layout */}
           <div 
-            className="px-4 py-3 sm:px-5 sm:py-4 flex items-center gap-3"
+            className="px-4 py-3 sm:px-5 sm:py-4"
             style={{ backgroundColor: primaryColor }}
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-              <StepIcon className="text-white text-base sm:text-lg" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-white font-bold text-base sm:text-lg leading-tight truncate">{step.title}</h3>
-              <div className="flex items-center gap-2 mt-0.5">
-                {TOUR_STEPS.map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-1 rounded-full transition-all duration-300"
-                    style={{
-                      width: index === currentStep ? '20px' : '8px',
-                      backgroundColor: index <= currentStep ? 'white' : 'rgba(255,255,255,0.3)'
-                    }}
-                  />
-                ))}
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <StepIcon className="text-white text-base sm:text-lg" />
+              </div>
+              <div className="flex-1 min-w-0 pr-16">
+                {/* FIXED: Removed truncate class, allow text to wrap */}
+                <h3 className="text-white font-bold text-base sm:text-lg leading-tight">{step.title}</h3>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  {TOUR_STEPS.map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-1 rounded-full transition-all duration-300"
+                      style={{
+                        width: index === currentStep ? '16px' : '6px',
+                        backgroundColor: index <= currentStep ? 'white' : 'rgba(255,255,255,0.3)'
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Controls positioned absolutely in top-right */}
+            <div className="absolute top-3 right-3 flex items-center gap-1">
               <button 
                 onClick={handleMinimize}
                 className="text-white/60 hover:text-white p-2 text-xs"

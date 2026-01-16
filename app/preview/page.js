@@ -2,64 +2,35 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaClock, FaCheck, FaLock, FaEye, FaSpinner } from 'react-icons/fa'
+import { FaClock, FaCheck, FaLock, FaEye, FaSpinner, FaCheckCircle } from 'react-icons/fa'
 import TourOverlay from '../components/TourOverlay'
 import Image from 'next/image'
 
-// Loading messages - randomized, won't repeat
-const ALL_LOADING_MESSAGES = [
-  "Building your layout...",
-  "Adding your logo...",
-  "Setting up services...",
-  "Configuring service areas...",
-  "Optimizing for mobile...",
-  "Adding booking system...",
-  "Finalizing your site...",
-  "Generating color scheme...",
-  "Creating navigation...",
-  "Setting up contact forms...",
-  "Adding hero section...",
-  "Configuring SEO tags...",
-  "Building service pages...",
-  "Adding testimonials section...",
-  "Setting up footer...",
-  "Optimizing images...",
-  "Creating about page...",
-  "Adding call-to-action buttons...",
-  "Configuring analytics...",
-  "Building gallery section...",
-  "Adding social links...",
-  "Setting up maps integration...",
-  "Creating pricing section...",
-  "Optimizing load speed...",
-  "Adding trust badges...",
-  "Finalizing design...",
+// Loading steps with timing
+const LOADING_STEPS = [
+  { id: 1, text: "Building your layout...", duration: 1200 },
+  { id: 2, text: "Adding your logo...", duration: 1000 },
+  { id: 3, text: "Setting up services...", duration: 1100 },
+  { id: 4, text: "Configuring service areas...", duration: 1300 },
+  { id: 5, text: "Optimizing for mobile...", duration: 900 },
+  { id: 6, text: "Adding booking system...", duration: 1000 },
+  { id: 7, text: "Finalizing your site...", duration: 1500 },
 ]
-
-// Shuffle function
-const shuffleArray = (array) => {
-  const shuffled = [...array]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-  return shuffled
-}
 
 export default function PreviewPage() {
   const router = useRouter()
   const iframeRef = useRef(null)
   
   const [isLoading, setIsLoading] = useState(true)
-  const [loadingMessages] = useState(() => shuffleArray(ALL_LOADING_MESSAGES))
-  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
+  const [currentLoadingStep, setCurrentLoadingStep] = useState(0)
+  const [completedSteps, setCompletedSteps] = useState([])
   const [error, setError] = useState(null)
   const [previewData, setPreviewData] = useState(null)
   const [companySlug, setCompanySlug] = useState(null)
   
   // Timer state
-  const [timeLeft, setTimeLeft] = useState(180) // 3 minutes
-  const [timerActive, setTimerActive] = useState(false) // Timer starts PAUSED
+  const [timeLeft, setTimeLeft] = useState(180)
+  const [timerActive, setTimerActive] = useState(false)
   
   // Paywall state
   const [showPaywall, setShowPaywall] = useState(false)
@@ -73,24 +44,42 @@ export default function PreviewPage() {
   // Prevent double initialization
   const initializingRef = useRef(false)
   const initializedRef = useRef(false)
+  const apiCallComplete = useRef(false)
 
-  // Junk-line URL
   const JUNKLINE_URL = 'https://service-business-platform.vercel.app'
 
-  // Cycle through loading messages (faster, stops at end)
+  // Animated loading steps
   useEffect(() => {
     if (!isLoading) return
-    if (loadingMessageIndex >= loadingMessages.length - 1) return // Stop at end
     
-    const interval = setInterval(() => {
-      setLoadingMessageIndex(prev => {
-        if (prev >= loadingMessages.length - 1) return prev
-        return prev + 1
-      })
-    }, 1000) // Change message every 1 second
+    let stepIndex = 0
+    let timeoutId
     
-    return () => clearInterval(interval)
-  }, [isLoading, loadingMessageIndex, loadingMessages.length])
+    const advanceStep = () => {
+      if (stepIndex < LOADING_STEPS.length) {
+        setCurrentLoadingStep(stepIndex)
+        
+        if (stepIndex > 0) {
+          setCompletedSteps(prev => [...prev, stepIndex - 1])
+        }
+        
+        const currentDuration = LOADING_STEPS[stepIndex].duration
+        stepIndex++
+        
+        if (stepIndex < LOADING_STEPS.length) {
+          timeoutId = setTimeout(advanceStep, currentDuration)
+        } else {
+          timeoutId = setTimeout(() => {
+            setCompletedSteps(prev => [...prev, LOADING_STEPS.length - 1])
+          }, currentDuration)
+        }
+      }
+    }
+    
+    advanceStep()
+    
+    return () => clearTimeout(timeoutId)
+  }, [])
 
   useEffect(() => {
     if (initializingRef.current || initializedRef.current) return
@@ -98,7 +87,6 @@ export default function PreviewPage() {
     initializePreview()
   }, [])
 
-  // Timer logic - only runs when timerActive is true
   useEffect(() => {
     if (!timerActive) return
     
@@ -131,25 +119,22 @@ export default function PreviewPage() {
       const data = JSON.parse(storedData)
       setPreviewData(data)
       
-      // Check if tour was already completed/skipped
       const tourDone = sessionStorage.getItem('tour_completed') || sessionStorage.getItem('tour_skipped')
       if (tourDone) {
         setShowTour(false)
-        setTimerActive(true) // Start timer if tour already done
+        setTimerActive(true)
       }
 
-      // Check if we already have a slug from a previous visit
       const existingSlug = sessionStorage.getItem('previewSlug')
       const existingSiteId = sessionStorage.getItem('previewSiteId')
       
       if (existingSlug && existingSiteId) {
         setCompanySlug(existingSlug)
         initializedRef.current = true
-        setIsLoading(false)
+        apiCallComplete.current = true
         return
       }
 
-      // Call API to create/update preview
       const response = await fetch('/api/sites/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,15 +153,24 @@ export default function PreviewPage() {
       sessionStorage.setItem('previewSiteId', result.siteId)
       
       initializedRef.current = true
+      apiCallComplete.current = true
 
     } catch (err) {
       console.error('Preview init error:', err)
       setError(err.message)
-    } finally {
       setIsLoading(false)
+    } finally {
       initializingRef.current = false
     }
   }
+
+  useEffect(() => {
+    if (apiCallComplete.current && completedSteps.length >= LOADING_STEPS.length) {
+      setTimeout(() => {
+        setIsLoading(false)
+      }, 500)
+    }
+  }, [completedSteps])
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
@@ -184,7 +178,6 @@ export default function PreviewPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Handle one more look
   const handleOneMoreLook = () => {
     setShowPaywall(false)
     setSecondLook(true)
@@ -223,68 +216,90 @@ export default function PreviewPage() {
     }
   }
 
-  // Tour handlers
   const handleTourComplete = () => {
-    // "See Plans" was clicked - show paywall immediately, start timer
     setShowTour(false)
     setTimerActive(true)
-    setShowPaywall(true) // Show paywall right away
+    setShowPaywall(true)
   }
 
   const handleTourSkip = () => {
     setShowTour(false)
-    setTimerActive(true) // Start timer
-  }
-
-  const handleTourMinimize = () => {
-    // User wants to explore on their own - start timer
     setTimerActive(true)
   }
 
-  // Loading state with bouncing logo and cycling messages
+  const handleTourMinimize = () => {
+    setTimerActive(true)
+  }
+
+  const handleLaunchNow = () => {
+    setShowPaywall(true)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto px-4">
           <motion.div
-            animate={{
-              y: [0, -20, 0],
-            }}
-            transition={{
-              duration: 0.8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
+            animate={{ y: [0, -15, 0] }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
             className="mb-8"
           >
-            <Image 
-              src="/logo.png" 
-              alt="Rocket Solutions" 
-              width={100} 
-              height={100}
-              className="mx-auto"
-            />
+            <Image src="/logo.png" alt="Rocket Solutions" width={80} height={80} className="mx-auto" />
           </motion.div>
           
-          {/* Cycling loading message */}
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={loadingMessageIndex}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.25 }}
-              className="text-white text-xl font-medium tracking-wide"
-            >
-              {loadingMessages[loadingMessageIndex]}
-            </motion.p>
-          </AnimatePresence>
+          <div className="space-y-3 text-left mb-6">
+            {LOADING_STEPS.map((step, index) => {
+              const isComplete = completedSteps.includes(index)
+              const isCurrent = currentLoadingStep === index && !isComplete
+              const isPending = index > currentLoadingStep
+              
+              return (
+                <motion.div
+                  key={step.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: isPending ? 0.3 : 1, x: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.3 }}
+                  className={`flex items-center gap-3 ${isPending ? 'opacity-30' : ''}`}
+                >
+                  <div className="w-6 h-6 flex items-center justify-center">
+                    {isComplete ? (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                      >
+                        <FaCheckCircle className="text-green-500 text-lg" />
+                      </motion.div>
+                    ) : isCurrent ? (
+                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full border-2 border-gray-600" />
+                    )}
+                  </div>
+                  
+                  <span className={`text-sm font-medium ${
+                    isComplete ? 'text-green-400' : isCurrent ? 'text-white' : 'text-gray-500'
+                  }`}>
+                    {step.text}
+                  </span>
+                </motion.div>
+              )
+            })}
+          </div>
+          
+          <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-blue-500 to-green-500"
+              initial={{ width: "0%" }}
+              animate={{ width: `${((completedSteps.length) / LOADING_STEPS.length) * 100}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
         </div>
       </div>
     )
   }
 
-  // Error state
   if (error) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
@@ -313,7 +328,6 @@ export default function PreviewPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      {/* Timer Banner */}
       <div 
         className="fixed top-0 left-0 right-0 z-50 py-2.5 px-4 text-center text-white text-sm font-medium shadow-lg"
         style={{ backgroundColor: timerActive && timeLeft <= 30 ? '#dc2626' : primaryColor }}
@@ -333,7 +347,7 @@ export default function PreviewPage() {
           </span>
           {timerActive && timeLeft > 0 && (
             <button 
-              onClick={() => handleCheckout('pro')}
+              onClick={handleLaunchNow}
               disabled={checkoutLoading}
               className="px-4 py-1.5 bg-white text-gray-800 rounded-lg font-semibold text-xs hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -343,7 +357,6 @@ export default function PreviewPage() {
         </div>
       </div>
 
-      {/* Junk-line iframe */}
       <iframe
         ref={iframeRef}
         src={`${JUNKLINE_URL}?slug=${companySlug}`}
@@ -352,7 +365,6 @@ export default function PreviewPage() {
         style={{ position: 'relative', zIndex: 1 }}
       />
 
-      {/* Tour Overlay */}
       {showTour && !isLoading && companySlug && (
         <TourOverlay 
           primaryColor={primaryColor}
@@ -363,7 +375,6 @@ export default function PreviewPage() {
         />
       )}
 
-      {/* Paywall Modal */}
       <AnimatePresence>
         {showPaywall && (
           <motion.div
@@ -371,16 +382,13 @@ export default function PreviewPage() {
             animate={{ opacity: 1 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            {/* Dark backdrop */}
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             
-            {/* Modal content */}
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 text-center max-h-[90vh] overflow-y-auto"
             >
-              {/* Lock icon */}
               <div 
                 className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" 
                 style={{ backgroundColor: `${primaryColor}15` }}
@@ -388,12 +396,10 @@ export default function PreviewPage() {
                 <FaLock className="text-2xl" style={{ color: primaryColor }} />
               </div>
               
-              {/* Title */}
               <h2 className="text-2xl font-bold text-gray-800 mb-2">
                 {finalPaywall ? 'Your Preview Has Expired' : 'Like What You See?'}
               </h2>
               
-              {/* Subtitle */}
               <p className="text-gray-600 mb-6">
                 {finalPaywall 
                   ? 'Choose a plan to launch your website today!'
@@ -401,7 +407,6 @@ export default function PreviewPage() {
                 }
               </p>
 
-              {/* Site summary card */}
               <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
                 <div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200">
                   {logoPreview ? (
@@ -436,27 +441,19 @@ export default function PreviewPage() {
                 </div>
               </div>
 
-              {/* Plan selection */}
               <div className="space-y-3 mb-6">
-                
-                {/* GROWTH PLAN - Only shown on FIRST paywall */}
                 {!finalPaywall && (
                   <button
                     onClick={() => handleCheckout('growth')}
                     disabled={checkoutLoading}
                     className="w-full p-4 rounded-xl border-2 text-left transition-all hover:bg-opacity-10 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ 
-                      borderColor: '#10B981',
-                      backgroundColor: '#10B98108'
-                    }}
+                    style={{ borderColor: '#10B981', backgroundColor: '#10B98108' }}
                   >
                     <div className="flex justify-between items-center">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-gray-800">Growth</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full text-white bg-emerald-500">
-                            Best Value
-                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full text-white bg-emerald-500">Best Value</span>
                         </div>
                         <p className="text-sm text-gray-500">Everything + AI features + priority support</p>
                       </div>
@@ -474,24 +471,17 @@ export default function PreviewPage() {
                   </button>
                 )}
 
-                {/* PRO PLAN */}
                 <button
                   onClick={() => handleCheckout('pro')}
                   disabled={checkoutLoading}
                   className="w-full p-4 rounded-xl border-2 text-left transition-all hover:bg-opacity-10 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ 
-                    borderColor: primaryColor,
-                    backgroundColor: `${primaryColor}08`
-                  }}
+                  style={{ borderColor: primaryColor, backgroundColor: `${primaryColor}08` }}
                 >
                   <div className="flex justify-between items-center">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-gray-800">Pro</span>
-                        <span 
-                          className="text-xs px-2 py-0.5 rounded-full text-white" 
-                          style={{ backgroundColor: primaryColor }}
-                        >
+                        <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: primaryColor }}>
                           {finalPaywall ? 'Best Value' : 'Recommended'}
                         </span>
                       </div>
@@ -510,7 +500,6 @@ export default function PreviewPage() {
                   </div>
                 </button>
 
-                {/* STARTER PLAN */}
                 <button
                   onClick={() => handleCheckout('starter')}
                   disabled={checkoutLoading}
@@ -537,7 +526,6 @@ export default function PreviewPage() {
                 </button>
               </div>
 
-              {/* ONE MORE LOOK - Only shown on FIRST paywall */}
               {!finalPaywall && (
                 <button
                   onClick={handleOneMoreLook}
@@ -547,7 +535,6 @@ export default function PreviewPage() {
                 </button>
               )}
 
-              {/* Trust badges */}
               <p className="text-xs text-gray-400 mt-4">
                 ✓ Cancel anytime &nbsp; ✓ No setup fees &nbsp; ✓ Live in 24 hours
               </p>
