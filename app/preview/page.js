@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FaClock, FaCheck, FaLock, FaEye, FaSpinner } from 'react-icons/fa'
 import TourOverlay from '../components/TourOverlay'
+import Image from 'next/image'
 
 export default function PreviewPage() {
   const router = useRouter()
@@ -183,13 +184,33 @@ export default function PreviewPage() {
     setTimerActive(true)
   }
 
-  // Loading state
+  // Loading state with bouncing logo
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white text-xl">Building your preview...</p>
+          <motion.div
+            animate={{
+              y: [0, -20, 0],
+            }}
+            transition={{
+              duration: 0.8,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="mb-6"
+          >
+            <Image 
+              src="/logo.png" 
+              alt="Rocket Solutions" 
+              width={100} 
+              height={100}
+              className="mx-auto"
+            />
+          </motion.div>
+          <p className="text-white text-xl font-medium tracking-wide">
+            Building your preview...
+          </p>
         </div>
       </div>
     )
