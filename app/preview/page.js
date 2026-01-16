@@ -6,22 +6,52 @@ import { FaClock, FaCheck, FaLock, FaEye, FaSpinner } from 'react-icons/fa'
 import TourOverlay from '../components/TourOverlay'
 import Image from 'next/image'
 
-// Loading messages that cycle through
-const LOADING_MESSAGES = [
+// Loading messages - randomized, won't repeat
+const ALL_LOADING_MESSAGES = [
   "Building your layout...",
   "Adding your logo...",
   "Setting up services...",
   "Configuring service areas...",
   "Optimizing for mobile...",
   "Adding booking system...",
-  "Finalizing your site..."
+  "Finalizing your site...",
+  "Generating color scheme...",
+  "Creating navigation...",
+  "Setting up contact forms...",
+  "Adding hero section...",
+  "Configuring SEO tags...",
+  "Building service pages...",
+  "Adding testimonials section...",
+  "Setting up footer...",
+  "Optimizing images...",
+  "Creating about page...",
+  "Adding call-to-action buttons...",
+  "Configuring analytics...",
+  "Building gallery section...",
+  "Adding social links...",
+  "Setting up maps integration...",
+  "Creating pricing section...",
+  "Optimizing load speed...",
+  "Adding trust badges...",
+  "Finalizing design...",
 ]
+
+// Shuffle function
+const shuffleArray = (array) => {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
 
 export default function PreviewPage() {
   const router = useRouter()
   const iframeRef = useRef(null)
   
   const [isLoading, setIsLoading] = useState(true)
+  const [loadingMessages] = useState(() => shuffleArray(ALL_LOADING_MESSAGES))
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
   const [error, setError] = useState(null)
   const [previewData, setPreviewData] = useState(null)
@@ -47,16 +77,20 @@ export default function PreviewPage() {
   // Junk-line URL
   const JUNKLINE_URL = 'https://service-business-platform.vercel.app'
 
-  // Cycle through loading messages
+  // Cycle through loading messages (faster, stops at end)
   useEffect(() => {
     if (!isLoading) return
+    if (loadingMessageIndex >= loadingMessages.length - 1) return // Stop at end
     
     const interval = setInterval(() => {
-      setLoadingMessageIndex(prev => (prev + 1) % LOADING_MESSAGES.length)
-    }, 1500) // Change message every 1.5 seconds
+      setLoadingMessageIndex(prev => {
+        if (prev >= loadingMessages.length - 1) return prev
+        return prev + 1
+      })
+    }, 1000) // Change message every 1 second
     
     return () => clearInterval(interval)
-  }, [isLoading])
+  }, [isLoading, loadingMessageIndex, loadingMessages.length])
 
   useEffect(() => {
     if (initializingRef.current || initializedRef.current) return
@@ -239,28 +273,12 @@ export default function PreviewPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.25 }}
               className="text-white text-xl font-medium tracking-wide"
             >
-              {LOADING_MESSAGES[loadingMessageIndex]}
+              {loadingMessages[loadingMessageIndex]}
             </motion.p>
           </AnimatePresence>
-          
-          {/* Progress dots */}
-          <div className="flex justify-center gap-2 mt-6">
-            {LOADING_MESSAGES.map((_, index) => (
-              <div
-                key={index}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  index === loadingMessageIndex 
-                    ? 'bg-blue-500 scale-125' 
-                    : index < loadingMessageIndex 
-                      ? 'bg-blue-400' 
-                      : 'bg-gray-600'
-                }`}
-              />
-            ))}
-          </div>
         </div>
       </div>
     )
