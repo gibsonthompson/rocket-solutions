@@ -6,11 +6,23 @@ import { FaClock, FaCheck, FaLock, FaEye, FaSpinner } from 'react-icons/fa'
 import TourOverlay from '../components/TourOverlay'
 import Image from 'next/image'
 
+// Loading messages that cycle through
+const LOADING_MESSAGES = [
+  "Building your layout...",
+  "Adding your logo...",
+  "Setting up services...",
+  "Configuring service areas...",
+  "Optimizing for mobile...",
+  "Adding booking system...",
+  "Finalizing your site..."
+]
+
 export default function PreviewPage() {
   const router = useRouter()
   const iframeRef = useRef(null)
   
   const [isLoading, setIsLoading] = useState(true)
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
   const [error, setError] = useState(null)
   const [previewData, setPreviewData] = useState(null)
   const [companySlug, setCompanySlug] = useState(null)
@@ -34,6 +46,17 @@ export default function PreviewPage() {
 
   // Junk-line URL
   const JUNKLINE_URL = 'https://service-business-platform.vercel.app'
+
+  // Cycle through loading messages
+  useEffect(() => {
+    if (!isLoading) return
+    
+    const interval = setInterval(() => {
+      setLoadingMessageIndex(prev => (prev + 1) % LOADING_MESSAGES.length)
+    }, 1500) // Change message every 1.5 seconds
+    
+    return () => clearInterval(interval)
+  }, [isLoading])
 
   useEffect(() => {
     if (initializingRef.current || initializedRef.current) return
@@ -184,7 +207,7 @@ export default function PreviewPage() {
     setTimerActive(true)
   }
 
-  // Loading state with bouncing logo
+  // Loading state with bouncing logo and cycling messages
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -198,7 +221,7 @@ export default function PreviewPage() {
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="mb-6"
+            className="mb-8"
           >
             <Image 
               src="/logo.png" 
@@ -208,9 +231,36 @@ export default function PreviewPage() {
               className="mx-auto"
             />
           </motion.div>
-          <p className="text-white text-xl font-medium tracking-wide">
-            Building your preview...
-          </p>
+          
+          {/* Cycling loading message */}
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={loadingMessageIndex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="text-white text-xl font-medium tracking-wide"
+            >
+              {LOADING_MESSAGES[loadingMessageIndex]}
+            </motion.p>
+          </AnimatePresence>
+          
+          {/* Progress dots */}
+          <div className="flex justify-center gap-2 mt-6">
+            {LOADING_MESSAGES.map((_, index) => (
+              <div
+                key={index}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  index === loadingMessageIndex 
+                    ? 'bg-blue-500 scale-125' 
+                    : index < loadingMessageIndex 
+                      ? 'bg-blue-400' 
+                      : 'bg-gray-600'
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </div>
     )
