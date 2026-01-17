@@ -6,11 +6,35 @@ import bcrypt from 'bcryptjs'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
+// Map Stripe price IDs to plan names
+const PRICE_TO_PLAN = {
+  [process.env.STRIPE_PRICE_STARTER]: 'starter',
+  [process.env.STRIPE_PRICE_PRO]: 'pro',
+  [process.env.STRIPE_PRICE_GROWTH]: 'growth',
+}
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
+}
+
+// Get plan from subscription
+async function getPlanFromSubscription(subscriptionId) {
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    const priceId = subscription.items.data[0]?.price?.id
+    return PRICE_TO_PLAN[priceId] || 'starter'
+  } catch (error) {
+    console.error('Error getting plan from subscription:', error)
+    return 'starter'
+  }
+}
+
+// Get plan from price ID
+function getPlanFromPriceId(priceId) {
+  return PRICE_TO_PLAN[priceId] || 'starter'
 }
 
 export async function POST(request) {
@@ -31,6 +55,8 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
+  console.log('Webhook event received:', event.type)
+
   // Handle the checkout.session.completed event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
@@ -43,7 +69,7 @@ export async function POST(request) {
     }
   }
 
-  // Handle subscription updates (for future use)
+  // Handle subscription updates (upgrades/downgrades)
   if (event.type === 'customer.subscription.updated') {
     const subscription = event.data.object
     await handleSubscriptionUpdate(subscription)
@@ -83,9 +109,7 @@ async function handleCheckoutComplete(session) {
     throw new Error('No company_id in session metadata')
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // FIX: Fetch existing record to preserve the slug
-  // ═══════════════════════════════════════════════════════════════
+  // Fetch existing record to preserve the slug
   const { data: existingCompany, error: fetchError } = await supabase
     .from('junk_companies')
     .select('id, company_slug')
@@ -97,7 +121,7 @@ async function handleCheckoutComplete(session) {
     throw new Error(`Company not found: ${company_id}`)
   }
 
-  // Use EXISTING slug from database, fall back to metadata, then generate as last resort
+  // Use EXISTING slug from database
   const subdomain = existingCompany.company_slug 
     || session.metadata.company_slug 
     || generateSubdomain(company_name)
@@ -108,14 +132,17 @@ async function handleCheckoutComplete(session) {
   const tempPassword = generateTempPassword()
   const hashedPassword = await bcrypt.hash(tempPassword, 10)
 
+  // Get the actual plan from the subscription (more reliable than metadata)
+  let actualPlan = plan || 'starter'
+  if (session.subscription) {
+    actualPlan = await getPlanFromSubscription(session.subscription)
+  }
+
   // Update company record
-  // IMPORTANT: DO NOT overwrite company_slug or logo_url - they're already saved during preview
   const { data: company, error: updateError } = await supabase
     .from('junk_companies')
     .update({
       company_name,
-      // company_slug: PRESERVED - already set during preview, don't overwrite
-      // logo_url: PRESERVED - already saved during preview (too large for Stripe metadata)
       owner_name,
       email,
       phone,
@@ -126,11 +153,11 @@ async function handleCheckoutComplete(session) {
       primary_color: primary_color || '#3B82F6',
       logo_background_color: logo_background_color || '#020202',
       service_radius: parseInt(service_radius) || 25,
-      plan: plan || 'starter',
+      plan: actualPlan,
       stripe_customer_id: session.customer,
       stripe_subscription_id: session.subscription,
-      dashboard_password_hash: hashedPassword,  // Login checks this column
-      temp_password: tempPassword, // Store plain password temporarily for success page
+      dashboard_password_hash: hashedPassword,
+      temp_password: tempPassword,
       is_active: true,
       status: 'active',
       updated_at: new Date().toISOString()
@@ -149,53 +176,80 @@ async function handleCheckoutComplete(session) {
   
   if (!provisionResult.success) {
     console.error('Subdomain provisioning failed:', provisionResult.error)
-    // Don't throw - company is created, just log the issue
   }
 
-  // Log the result (replace with email sending later)
+  // Log the result
   console.log('═══════════════════════════════════════')
   console.log('✅ NEW CUSTOMER SETUP COMPLETE')
   console.log('═══════════════════════════════════════')
   console.log(`Company: ${company_name}`)
   console.log(`Email: ${email}`)
-  console.log(`Plan: ${plan}`)
+  console.log(`Plan: ${actualPlan}`)
   console.log(`Subdomain: ${subdomain}.gorocketsolutions.com`)
   console.log(`Temp Password: ${tempPassword}`)
   console.log(`Dashboard: https://${subdomain}.gorocketsolutions.com/dashboard`)
   console.log('═══════════════════════════════════════')
 
-  // TODO: Send welcome email with credentials
-  // await sendWelcomeEmail({
-  //   to: email,
-  //   companyName: company_name,
-  //   subdomain,
-  //   tempPassword,
-  //   dashboardUrl: `https://${subdomain}.gorocketsolutions.com/dashboard`
-  // })
-
   return { success: true, subdomain, company }
 }
 
 async function handleSubscriptionUpdate(subscription) {
-  // Find company by stripe_subscription_id and update status
   const supabase = getSupabase()
-  const { error } = await supabase
+  
+  // Get the new plan from the subscription's price
+  const priceId = subscription.items.data[0]?.price?.id
+  const newPlan = getPlanFromPriceId(priceId)
+  
+  console.log('═══════════════════════════════════════')
+  console.log('📝 SUBSCRIPTION UPDATE')
+  console.log('═══════════════════════════════════════')
+  console.log(`Subscription ID: ${subscription.id}`)
+  console.log(`Status: ${subscription.status}`)
+  console.log(`New Plan: ${newPlan}`)
+  console.log(`Price ID: ${priceId}`)
+  console.log('═══════════════════════════════════════')
+
+  // Update company with new plan and status
+  const { data, error } = await supabase
     .from('junk_companies')
     .update({
+      plan: newPlan,
       status: subscription.status,
       updated_at: new Date().toISOString()
     })
     .eq('stripe_subscription_id', subscription.id)
+    .select('id, company_name, email')
+    .single()
 
   if (error) {
-    console.error('Failed to update subscription status:', error)
+    console.error('Failed to update subscription:', error)
+    return
+  }
+
+  if (data) {
+    console.log(`✅ Updated ${data.company_name} (${data.email}) to ${newPlan} plan`)
+    
+    // TODO: Send email notification about plan change
+    // await sendPlanChangeEmail({
+    //   to: data.email,
+    //   companyName: data.company_name,
+    //   newPlan,
+    //   status: subscription.status
+    // })
   }
 }
 
 async function handleSubscriptionCancelled(subscription) {
-  // Deactivate the company
   const supabase = getSupabase()
-  const { error } = await supabase
+  
+  console.log('═══════════════════════════════════════')
+  console.log('❌ SUBSCRIPTION CANCELLED')
+  console.log('═══════════════════════════════════════')
+  console.log(`Subscription ID: ${subscription.id}`)
+  console.log('═══════════════════════════════════════')
+
+  // Deactivate the company
+  const { data, error } = await supabase
     .from('junk_companies')
     .update({
       is_active: false,
@@ -203,9 +257,22 @@ async function handleSubscriptionCancelled(subscription) {
       updated_at: new Date().toISOString()
     })
     .eq('stripe_subscription_id', subscription.id)
+    .select('id, company_name, email')
+    .single()
 
   if (error) {
     console.error('Failed to handle subscription cancellation:', error)
+    return
+  }
+
+  if (data) {
+    console.log(`✅ Deactivated ${data.company_name} (${data.email})`)
+    
+    // TODO: Send cancellation email
+    // await sendCancellationEmail({
+    //   to: data.email,
+    //   companyName: data.company_name
+    // })
   }
 }
 
@@ -242,20 +309,17 @@ async function provisionSubdomain(companyId, subdomain) {
 function generateSubdomain(businessName) {
   if (!businessName) return `site-${Date.now()}`
   
-  // Convert to lowercase, replace spaces and special chars with hyphens
   let slug = businessName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
-    .substring(0, 30) // Keep it reasonable length
+    .substring(0, 30)
 
-  // Add random suffix to ensure uniqueness
   const suffix = Math.random().toString(36).substring(2, 8)
   
   return `${slug}-${suffix}`
 }
 
 function generateTempPassword() {
-  // Generate a simple 6-digit PIN
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
