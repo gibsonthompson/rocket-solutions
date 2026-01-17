@@ -28,7 +28,7 @@ export default function Pricing() {
     },
     {
       name: 'Pro',
-      price: 99,
+      price: 97,
       description: 'Grow your business faster',
       features: [
         'Everything in Starter',
@@ -45,7 +45,7 @@ export default function Pricing() {
     },
     {
       name: 'Growth',
-      price: 149,
+      price: 199,
       description: 'Maximum visibility & automation',
       features: [
         'Everything in Pro',
