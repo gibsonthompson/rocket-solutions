@@ -1,7 +1,6 @@
 'use client'
 import Link from 'next/link'
-import Image from 'next/image'
-import { FaCheck, FaPlay, FaArrowRight, FaPhone, FaStar, FaCalendarCheck, FaGoogle } from 'react-icons/fa'
+import { FaCheck, FaArrowRight, FaPhone, FaStar, FaCalendarCheck, FaGoogle } from 'react-icons/fa'
 import { motion } from 'framer-motion'
 
 export default function Hero() {
@@ -24,7 +23,7 @@ export default function Hero() {
         <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-500" />
       </div>
 
-      <div className="container-custom relative z-10 pt-24 pb-16">
+      <div className="container-custom relative z-10 pt-24 pb-32">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
           <motion.div
@@ -63,19 +62,12 @@ export default function Hero() {
               ))}
             </div>
 
-            {/* CTA Buttons */}
+            {/* CTA Button */}
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/onboarding" className="btn-primary text-lg flex items-center justify-center gap-2">
                 Get My Website
                 <FaArrowRight />
               </Link>
-              <a 
-                href="#demo" 
-                className="btn-secondary bg-white/10 border-white/20 text-white hover:bg-white/20 flex items-center justify-center gap-2"
-              >
-                <FaPlay className="text-sm" />
-                See an Example
-              </a>
             </div>
           </motion.div>
 
@@ -244,8 +236,8 @@ export default function Hero() {
 
       {/* Bottom wave */}
       <div className="absolute bottom-0 left-0 right-0">
-        <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
+        <svg viewBox="0 0 1440 200" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" className="w-full h-32">
+          <path d="M0 200L60 175C120 150 240 100 360 75C480 50 600 50 720 62.5C840 75 960 100 1080 112.5C1200 125 1320 125 1380 125L1440 125V200H1380C1320 200 1200 200 1080 200C960 200 840 200 720 200C600 200 480 200 360 200C240 200 120 200 60 200H0Z" fill="white"/>
         </svg>
       </div>
     </section>
