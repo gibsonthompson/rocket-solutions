@@ -77,30 +77,6 @@ export default function Hero() {
                 See an Example
               </a>
             </div>
-
-            {/* Social Proof */}
-            <div className="mt-8 pt-8 border-t border-white/10">
-              <div className="flex items-center gap-4">
-                <div className="flex -space-x-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="w-10 h-10 rounded-full gradient-bg border-2 border-slate-900 flex items-center justify-center text-white text-xs font-bold"
-                    >
-                      {String.fromCharCode(64 + i)}
-                    </div>
-                  ))}
-                </div>
-                <div className="text-white/80">
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <span key={i} className="text-yellow-400">★</span>
-                    ))}
-                  </div>
-                  <p className="text-sm">"Finally a website that gets me calls"</p>
-                </div>
-              </div>
-            </div>
           </motion.div>
 
           {/* Right Content - Website Preview */}
