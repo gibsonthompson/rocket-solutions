@@ -20,6 +20,7 @@ export default function Hero() {
   
   // Use agency colors with fallbacks
   const primaryColor = agency?.primary_color || '#fa8820'
+  const secondaryColor = agency?.secondary_color || '#ff6b6b'
   
   // Create a darker shade for the gradient background
   const rgb = hexToRgb(primaryColor)
@@ -56,7 +57,7 @@ export default function Hero() {
         />
         <div 
           className="absolute top-1/2 right-1/3 w-64 h-64 rounded-full blur-3xl animate-pulse"
-          style={{ backgroundColor: `${primaryColor}10`, animationDelay: '0.5s' }}
+          style={{ backgroundColor: `${secondaryColor}10`, animationDelay: '0.5s' }}
         />
       </div>
 
@@ -79,7 +80,7 @@ export default function Hero() {
               <span 
                 className="bg-clip-text text-transparent"
                 style={{ 
-                  backgroundImage: `linear-gradient(to right, ${primaryColor}, #ffffff)`
+                  backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
                 }}
               >
                 Competitors With Better Websites

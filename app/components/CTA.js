@@ -8,6 +8,7 @@ export default function CTA() {
   const { agency } = useAgency()
 
   const primaryColor = agency?.primary_color || '#fa8820'
+  const secondaryColor = agency?.secondary_color || '#ff6b6b'
 
   return (
     <section className="section-padding bg-dark relative overflow-hidden">
@@ -19,7 +20,7 @@ export default function CTA() {
         />
         <div 
           className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full blur-3xl"
-          style={{ backgroundColor: `${primaryColor}15` }}
+          style={{ backgroundColor: `${secondaryColor}15` }}
         />
       </div>
 
@@ -49,7 +50,7 @@ export default function CTA() {
             <span 
               className="bg-clip-text text-transparent"
               style={{ 
-                backgroundImage: `linear-gradient(to right, ${primaryColor}, #ffffff)`
+                backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
               }}
             >
               Searching Google Right Now

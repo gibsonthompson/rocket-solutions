@@ -23,7 +23,7 @@ export async function middleware(request) {
   // Lookup agency by marketing_domain
   const { data: agency, error } = await supabase
     .from('agencies')
-    .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, tagline, support_email, support_phone, price_starter, price_pro, price_growth')
+    .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, brand_palette, tagline, support_email, support_phone, price_starter, price_pro, price_growth')
     .eq('marketing_domain', hostname)
     .eq('status', 'active')
     .single()
@@ -39,7 +39,7 @@ export async function middleware(request) {
     if (isLocalOrPreview) {
       const { data: defaultAgency } = await supabase
         .from('agencies')
-        .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, tagline, support_email, support_phone, price_starter, price_pro, price_growth')
+        .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, brand_palette, tagline, support_email, support_phone, price_starter, price_pro, price_growth')
         .eq('slug', 'rocket-solutions')
         .single()
 
