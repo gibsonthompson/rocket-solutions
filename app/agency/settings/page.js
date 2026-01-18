@@ -65,6 +65,15 @@ export default function AgencySettingsPage() {
     }
   }, [agency, isInitialized])
 
+  // Helper to convert RGB to valid hex
+  const rgbToHex = (r, g, b) => {
+    const toHex = (n) => {
+      const clamped = Math.max(0, Math.min(255, n))
+      return clamped.toString(16).padStart(2, '0')
+    }
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  }
+
   // Color detection functions
   const detectLogoBackground = (img) => {
     const canvas = document.createElement('canvas')
@@ -144,10 +153,10 @@ export default function AgencySettingsPage() {
         if (dist < 50) continue
       }
       
-      // Quantize
-      const qr = Math.round(r / 16) * 16
-      const qg = Math.round(g / 16) * 16
-      const qb = Math.round(b / 16) * 16
+      // Quantize - use floor to avoid 256
+      const qr = Math.min(240, Math.floor(r / 16) * 16)
+      const qg = Math.min(240, Math.floor(g / 16) * 16)
+      const qb = Math.min(240, Math.floor(b / 16) * 16)
       const key = `${qr},${qg},${qb}`
       colorCounts[key] = (colorCounts[key] || 0) + 1
     }
@@ -167,10 +176,7 @@ export default function AgencySettingsPage() {
       .filter(c => c.saturation > 0.25 && c.lightness > 0.15 && c.lightness < 0.85 && c.count > 30)
       .sort((a, b) => (b.saturation * Math.log(b.count)) - (a.saturation * Math.log(a.count)))
       .slice(0, 6)
-      .map(c => {
-        const hex = '#' + [c.r, c.g, c.b].map(x => x.toString(16).padStart(2, '0')).join('')
-        return hex
-      })
+      .map(c => rgbToHex(c.r, c.g, c.b))
     
     return colors
   }
