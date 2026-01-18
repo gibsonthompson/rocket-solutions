@@ -7,8 +7,6 @@ export default function Features() {
   const { agency } = useAgency()
   
   const primaryColor = agency?.primary_color || '#fa8820'
-  // Generate a secondary color for gradient if not set
-  const secondaryColor = agency?.secondary_color || '#ff6b6b'
 
   const features = [
     {
@@ -73,7 +71,7 @@ export default function Features() {
             <span 
               className="bg-clip-text text-transparent"
               style={{ 
-                backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+                backgroundImage: `linear-gradient(to right, ${primaryColor}, ${primaryColor})`
               }}
             >
               Get More Jobs

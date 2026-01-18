@@ -15,24 +15,11 @@ function hexToRgb(hex) {
   } : { r: 250, g: 136, b: 32 }
 }
 
-// Generate a complementary/analogous color for gradients
-function generateSecondaryColor(primaryHex) {
-  if (!primaryHex) return '#ff6b6b'
-  const rgb = hexToRgb(primaryHex)
-  // Shift hue by rotating RGB values and adjusting
-  const r = Math.min(255, Math.floor(rgb.r * 0.8 + rgb.g * 0.2))
-  const g = Math.min(255, Math.floor(rgb.g * 0.6 + rgb.b * 0.4))
-  const b = Math.min(255, Math.floor(rgb.b * 0.8 + rgb.r * 0.3))
-  return `rgb(${r}, ${g}, ${b})`
-}
-
 export default function Hero() {
   const { agency } = useAgency()
   
   // Use agency colors with fallbacks
   const primaryColor = agency?.primary_color || '#fa8820'
-  // Generate secondary color from primary if not set (agencies table might not have secondary_color)
-  const secondaryColor = agency?.secondary_color || generateSecondaryColor(primaryColor)
   
   // Create a darker shade for the gradient background
   const rgb = hexToRgb(primaryColor)
@@ -69,7 +56,7 @@ export default function Hero() {
         />
         <div 
           className="absolute top-1/2 right-1/3 w-64 h-64 rounded-full blur-3xl animate-pulse"
-          style={{ backgroundColor: `${secondaryColor}10`, animationDelay: '0.5s' }}
+          style={{ backgroundColor: `${primaryColor}10`, animationDelay: '0.5s' }}
         />
       </div>
 
@@ -92,7 +79,7 @@ export default function Hero() {
               <span 
                 className="bg-clip-text text-transparent"
                 style={{ 
-                  backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+                  backgroundImage: `linear-gradient(to right, ${primaryColor}, #ffffff)`
                 }}
               >
                 Competitors With Better Websites

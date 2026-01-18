@@ -8,7 +8,6 @@ export default function CTA() {
   const { agency } = useAgency()
 
   const primaryColor = agency?.primary_color || '#fa8820'
-  const secondaryColor = agency?.secondary_color || primaryColor
 
   return (
     <section className="section-padding bg-dark relative overflow-hidden">
@@ -50,7 +49,7 @@ export default function CTA() {
             <span 
               className="bg-clip-text text-transparent"
               style={{ 
-                backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+                backgroundImage: `linear-gradient(to right, ${primaryColor}, #ffffff)`
               }}
             >
               Searching Google Right Now
