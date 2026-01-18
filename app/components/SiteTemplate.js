@@ -327,7 +327,7 @@ export default function SiteTemplate({ siteData, isPreview = false, showTimer = 
         </div>
         <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-sm">© {new Date().getFullYear()} {businessName}. All rights reserved.</p>
-          <p className="text-gray-500 text-sm">Powered by <span className="text-white font-medium">Rocket Solutions</span></p>
+          <p className="text-gray-500 text-sm">Powered by <a href="https://gorocketsolutions.com" target="_blank" rel="noopener" className="text-white font-medium hover:underline">Rocket Solutions</a></p>
         </div>
       </div>
     </footer>

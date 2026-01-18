@@ -151,7 +151,15 @@ export default function Footer() {
             © {currentYear} {agency?.name || 'Rocket Solutions'}. All rights reserved.
           </p>
           <p className="text-gray-400 text-sm">
-            Built for home service pros 🚀
+            Powered by{' '}
+            <a 
+              href="https://tapstack.dev"
+              target="_blank"
+              rel="noopener"
+              className="text-white font-medium hover:underline"
+            >
+              Tapstack
+            </a>
           </p>
         </div>
       </div>
