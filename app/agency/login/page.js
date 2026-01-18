@@ -13,6 +13,7 @@ export default function AgencyLoginPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   
   // Password change state
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false)
@@ -25,15 +26,22 @@ export default function AgencyLoginPage() {
   // Get agency branding from middleware cookie
   const { agency, isLoading: agencyLoading } = useAgency()
 
-  // Check if already logged in
+  // Check if already logged in - only run once on mount
   useEffect(() => {
-    const existingAgencyId = localStorage.getItem('agencyId')
-    if (existingAgencyId) {
-      router.push('/agency/dashboard')
-    } else {
-      setIsCheckingSession(false)
+    const checkSession = () => {
+      const existingAgencyId = localStorage.getItem('agencyId')
+      if (existingAgencyId) {
+        setIsRedirecting(true)
+        router.replace('/agency/dashboard')
+      } else {
+        setIsCheckingSession(false)
+      }
     }
-  }, [router])
+    
+    // Small delay to ensure localStorage is accessible
+    const timer = setTimeout(checkSession, 50)
+    return () => clearTimeout(timer)
+  }, []) // Empty dependency - only run once
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -65,7 +73,8 @@ export default function AgencyLoginPage() {
 
       // Success - store session and redirect
       localStorage.setItem('agencyId', data.agencyId)
-      router.push('/agency/dashboard')
+      setIsRedirecting(true)
+      router.replace('/agency/dashboard')
     } catch (err) {
       setError('An unexpected error occurred')
       setIsLoading(false)
@@ -108,15 +117,16 @@ export default function AgencyLoginPage() {
 
       // Success - store session and redirect
       localStorage.setItem('agencyId', agencyId)
-      router.push('/agency/dashboard')
+      setIsRedirecting(true)
+      router.replace('/agency/dashboard')
     } catch (err) {
       setError('An unexpected error occurred')
       setIsLoading(false)
     }
   }
 
-  // Show loading while checking session or agency branding
-  if (isCheckingSession || agencyLoading) {
+  // Show loading while checking session, loading agency, or redirecting
+  if (isCheckingSession || agencyLoading || isRedirecting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
         <FaSpinner className="animate-spin text-4xl text-white" />
