@@ -2,8 +2,44 @@
 import Link from 'next/link'
 import { FaCheck, FaArrowRight, FaPhone, FaStar, FaCalendarCheck, FaGoogle } from 'react-icons/fa'
 import { motion } from 'framer-motion'
+import { useAgency } from '../../lib/AgencyContext'
+
+// Convert hex to RGB values
+function hexToRgb(hex) {
+  if (!hex) return { r: 250, g: 136, b: 32 } // Default orange
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 250, g: 136, b: 32 }
+}
+
+// Generate a complementary/analogous color for gradients
+function generateSecondaryColor(primaryHex) {
+  if (!primaryHex) return '#ff6b6b'
+  const rgb = hexToRgb(primaryHex)
+  // Shift hue by rotating RGB values and adjusting
+  const r = Math.min(255, Math.floor(rgb.r * 0.8 + rgb.g * 0.2))
+  const g = Math.min(255, Math.floor(rgb.g * 0.6 + rgb.b * 0.4))
+  const b = Math.min(255, Math.floor(rgb.b * 0.8 + rgb.r * 0.3))
+  return `rgb(${r}, ${g}, ${b})`
+}
 
 export default function Hero() {
+  const { agency } = useAgency()
+  
+  // Use agency colors with fallbacks
+  const primaryColor = agency?.primary_color || '#fa8820'
+  // Generate secondary color from primary if not set (agencies table might not have secondary_color)
+  const secondaryColor = agency?.secondary_color || generateSecondaryColor(primaryColor)
+  
+  // Create a darker shade for the gradient background
+  const rgb = hexToRgb(primaryColor)
+  const darkBgStart = `rgb(${Math.floor(rgb.r * 0.1)}, ${Math.floor(rgb.g * 0.1)}, ${Math.floor(rgb.b * 0.15)})`
+  const darkBgMid = `rgb(${Math.floor(rgb.r * 0.15)}, ${Math.floor(rgb.g * 0.12)}, ${Math.floor(rgb.b * 0.2)})`
+  const darkBgEnd = `rgb(${Math.floor(rgb.r * 0.2)}, ${Math.floor(rgb.g * 0.15)}, ${Math.floor(rgb.b * 0.25)})`
+
   const benefits = [
     'Get more calls from Google',
     'Let customers book 24/7',
@@ -13,14 +49,28 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
-      {/* Background Gradient - Dark to Blue */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950" />
+      {/* Background Gradient - Dynamic based on primary color */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(to bottom right, ${darkBgStart}, ${darkBgMid}, ${darkBgEnd})`
+        }}
+      />
       
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-500" />
+        <div 
+          className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse"
+          style={{ backgroundColor: `${primaryColor}15` }}
+        />
+        <div 
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse"
+          style={{ backgroundColor: `${primaryColor}15`, animationDelay: '1s' }}
+        />
+        <div 
+          className="absolute top-1/2 right-1/3 w-64 h-64 rounded-full blur-3xl animate-pulse"
+          style={{ backgroundColor: `${secondaryColor}10`, animationDelay: '0.5s' }}
+        />
       </div>
 
       <div className="container-custom relative z-10 pt-24 pb-32">
@@ -34,12 +84,19 @@ export default function Hero() {
             {/* Badge */}
             <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
               <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse" />
-              <span className="text-white/90 text-sm">Helping home service pros get found online</span>
+              <span className="text-white/90 text-sm">{agency?.tagline || 'Helping home service pros get found online'}</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
               Stop Losing Jobs to{' '}
-              <span className="gradient-text">Competitors With Better Websites</span>
+              <span 
+                className="bg-clip-text text-transparent"
+                style={{ 
+                  backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+                }}
+              >
+                Competitors With Better Websites
+              </span>
             </h1>
 
             <p className="text-xl text-gray-300 mb-8 max-w-lg">
@@ -64,7 +121,11 @@ export default function Hero() {
 
             {/* CTA Button */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/onboarding" className="btn-primary text-lg flex items-center justify-center gap-2">
+              <Link 
+                href="/onboarding" 
+                className="px-8 py-4 rounded-lg font-semibold text-lg text-white flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+                style={{ backgroundColor: primaryColor }}
+              >
                 Get My Website
                 <FaArrowRight />
               </Link>
@@ -100,14 +161,20 @@ export default function Hero() {
                     {/* Nav */}
                     <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary rounded-lg" />
+                        <div 
+                          className="w-8 h-8 rounded-lg"
+                          style={{ backgroundColor: primaryColor }}
+                        />
                         <div className="w-20 h-3 bg-gray-800 rounded" />
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-2 bg-gray-300 rounded" />
                         <div className="w-12 h-2 bg-gray-300 rounded" />
                         <div className="w-12 h-2 bg-gray-300 rounded" />
-                        <div className="w-20 h-7 bg-primary rounded-lg" />
+                        <div 
+                          className="w-20 h-7 rounded-lg"
+                          style={{ backgroundColor: primaryColor }}
+                        />
                       </div>
                     </div>
                     
@@ -118,7 +185,10 @@ export default function Hero() {
                         <div className="w-full h-3 bg-gray-300 rounded" />
                         <div className="w-2/3 h-3 bg-gray-300 rounded" />
                         <div className="flex gap-2 mt-4">
-                          <div className="w-24 h-8 bg-primary rounded-lg" />
+                          <div 
+                            className="w-24 h-8 rounded-lg"
+                            style={{ backgroundColor: primaryColor }}
+                          />
                           <div className="w-20 h-8 bg-gray-200 rounded-lg" />
                         </div>
                         {/* Trust badges */}
@@ -134,8 +204,14 @@ export default function Hero() {
                         </div>
                       </div>
                       <div className="w-1/2 pl-4">
-                        <div className="w-full h-28 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center">
-                          <div className="w-16 h-16 bg-primary/30 rounded-lg" />
+                        <div 
+                          className="w-full h-28 rounded-xl flex items-center justify-center"
+                          style={{ backgroundColor: `${primaryColor}20` }}
+                        >
+                          <div 
+                            className="w-16 h-16 rounded-lg"
+                            style={{ backgroundColor: `${primaryColor}30` }}
+                          />
                         </div>
                       </div>
                     </div>
@@ -145,7 +221,10 @@ export default function Hero() {
                       <div className="flex gap-3">
                         {[1, 2, 3].map((i) => (
                           <div key={i} className="flex-1 bg-gray-50 rounded-lg p-3">
-                            <div className="w-6 h-6 bg-primary/20 rounded mb-2" />
+                            <div 
+                              className="w-6 h-6 rounded mb-2"
+                              style={{ backgroundColor: `${primaryColor}20` }}
+                            />
                             <div className="w-full h-2 bg-gray-200 rounded mb-1" />
                             <div className="w-2/3 h-2 bg-gray-200 rounded" />
                           </div>
@@ -183,8 +262,11 @@ export default function Hero() {
                 style={{ animationDelay: '0.5s' }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <FaPhone className="text-blue-500" />
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: `${primaryColor}20` }}
+                  >
+                    <FaPhone style={{ color: primaryColor }} />
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-800">+12</p>
@@ -225,7 +307,12 @@ export default function Hero() {
                 style={{ animationDelay: '1.5s' }}
               >
                 <div className="text-center">
-                  <p className="text-lg font-bold text-primary">2.4k</p>
+                  <p 
+                    className="text-lg font-bold"
+                    style={{ color: primaryColor }}
+                  >
+                    2.4k
+                  </p>
                   <p className="text-xs text-gray-500">Monthly visitors</p>
                 </div>
               </motion.div>

@@ -2,12 +2,22 @@
 import Link from 'next/link'
 import { FaCheck, FaStar } from 'react-icons/fa'
 import { motion } from 'framer-motion'
+import { useAgency } from '../../lib/AgencyContext'
 
 export default function Pricing() {
+  const { agency } = useAgency()
+
+  const primaryColor = agency?.primary_color || '#fa8820'
+
+  // Convert cents to dollars for display
+  const starterPrice = agency?.price_starter ? Math.round(agency.price_starter / 100) : 49
+  const proPrice = agency?.price_pro ? Math.round(agency.price_pro / 100) : 97
+  const growthPrice = agency?.price_growth ? Math.round(agency.price_growth / 100) : 199
+
   const plans = [
     {
       name: 'Starter',
-      price: 49,
+      price: starterPrice,
       description: 'Everything you need to get online',
       features: [
         'Professional website',
@@ -28,7 +38,7 @@ export default function Pricing() {
     },
     {
       name: 'Pro',
-      price: 97,
+      price: proPrice,
       description: 'Grow your business faster',
       features: [
         'Everything in Starter',
@@ -45,7 +55,7 @@ export default function Pricing() {
     },
     {
       name: 'Growth',
-      price: 199,
+      price: growthPrice,
       description: 'Maximum visibility & automation',
       features: [
         'Everything in Pro',
@@ -71,7 +81,8 @@ export default function Pricing() {
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-primary font-semibold mb-4 block"
+            className="font-semibold mb-4 block"
+            style={{ color: primaryColor }}
           >
             PRICING
           </motion.span>
@@ -111,7 +122,10 @@ export default function Pricing() {
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="gradient-bg text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+                  <span 
+                    className="text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1"
+                    style={{ backgroundColor: primaryColor }}
+                  >
                     <FaStar className="text-yellow-300" /> Most Popular
                   </span>
                 </div>
@@ -152,8 +166,9 @@ export default function Pricing() {
                 className={`block text-center py-3 px-6 rounded-lg font-semibold transition-all duration-300 ${
                   plan.popular
                     ? 'bg-white text-dark hover:bg-gray-100'
-                    : 'gradient-bg text-white hover:opacity-90'
+                    : 'text-white hover:opacity-90'
                 }`}
+                style={!plan.popular ? { backgroundColor: primaryColor } : {}}
               >
                 {plan.cta}
               </Link>

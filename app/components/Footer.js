@@ -1,10 +1,13 @@
 'use client'
 import Link from 'next/link'
-import Image from 'next/image'
 import { FaInstagram, FaFacebook, FaYoutube } from 'react-icons/fa'
+import { useAgency } from '../../lib/AgencyContext'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
+  const { agency } = useAgency()
+
+  const primaryColor = agency?.primary_color || '#fa8820'
 
   const footerLinks = {
     product: [
@@ -24,10 +27,11 @@ export default function Footer() {
     ],
   }
 
+  // Default social links - agencies can customize these later
   const socialLinks = [
-    { icon: FaInstagram, href: 'https://instagram.com/rocketsolutionsio', label: 'Instagram' },
-    { icon: FaFacebook, href: 'https://facebook.com/rocketsolutionsio', label: 'Facebook' },
-    { icon: FaYoutube, href: 'https://youtube.com/@rocketsolutionsio', label: 'YouTube' },
+    { icon: FaInstagram, href: 'https://instagram.com', label: 'Instagram' },
+    { icon: FaFacebook, href: 'https://facebook.com', label: 'Facebook' },
+    { icon: FaYoutube, href: 'https://youtube.com', label: 'YouTube' },
   ]
 
   return (
@@ -37,17 +41,24 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Image 
-                src="/logo.png" 
-                alt="Rocket Solutions" 
-                width={40} 
-                height={40}
-                className="object-contain"
-              />
-              <span className="text-xl font-bold">Rocket Solutions</span>
+              {agency?.logo_url ? (
+                <img 
+                  src={agency.logo_url} 
+                  alt={agency.name || 'Logo'} 
+                  className="h-10 w-auto object-contain"
+                />
+              ) : (
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {agency?.name?.[0]?.toUpperCase() || 'R'}
+                </div>
+              )}
+              <span className="text-xl font-bold">{agency?.name || 'Rocket Solutions'}</span>
             </Link>
             <p className="text-gray-400 mb-6 max-w-sm">
-              Professional websites for home service businesses. Get found on Google and start booking more jobs.
+              {agency?.tagline || 'Professional websites for home service businesses. Get found on Google and start booking more jobs.'}
             </p>
             {/* Social Links */}
             <div className="flex gap-4">
@@ -57,7 +68,10 @@ export default function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-primary transition-colors"
+                  className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ '--hover-bg': primaryColor }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = primaryColor}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
                   aria-label={social.label}
                 >
                   <social.icon className="text-lg" />
@@ -106,13 +120,35 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
+            {/* Support Contact */}
+            {agency?.support_email && (
+              <div className="mt-6">
+                <h4 className="font-semibold mb-2">Support</h4>
+                <a 
+                  href={`mailto:${agency.support_email}`}
+                  className="text-gray-400 hover:text-white transition-colors text-sm"
+                >
+                  {agency.support_email}
+                </a>
+              </div>
+            )}
+            {agency?.support_phone && (
+              <div className="mt-2">
+                <a 
+                  href={`tel:${agency.support_phone.replace(/\D/g, '')}`}
+                  className="text-gray-400 hover:text-white transition-colors text-sm"
+                >
+                  {agency.support_phone}
+                </a>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-400 text-sm">
-            © {currentYear} Rocket Solutions. All rights reserved.
+            © {currentYear} {agency?.name || 'Rocket Solutions'}. All rights reserved.
           </p>
           <p className="text-gray-400 text-sm">
             Built for home service pros 🚀

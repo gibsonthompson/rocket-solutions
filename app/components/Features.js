@@ -1,8 +1,15 @@
 'use client'
 import { FaMobile, FaCalendarAlt, FaSearch, FaImages, FaChartLine, FaClock } from 'react-icons/fa'
 import { motion } from 'framer-motion'
+import { useAgency } from '../../lib/AgencyContext'
 
 export default function Features() {
+  const { agency } = useAgency()
+  
+  const primaryColor = agency?.primary_color || '#fa8820'
+  // Generate a secondary color for gradient if not set
+  const secondaryColor = agency?.secondary_color || '#ff6b6b'
+
   const features = [
     {
       icon: FaSearch,
@@ -51,7 +58,8 @@ export default function Features() {
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-primary font-semibold mb-4 block"
+            className="font-semibold mb-4 block"
+            style={{ color: primaryColor }}
           >
             WHAT YOU GET
           </motion.span>
@@ -62,7 +70,14 @@ export default function Features() {
             className="text-3xl md:text-4xl lg:text-5xl font-bold text-dark mb-6"
           >
             Everything You Need to{' '}
-            <span className="gradient-text">Get More Jobs</span>
+            <span 
+              className="bg-clip-text text-transparent"
+              style={{ 
+                backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+              }}
+            >
+              Get More Jobs
+            </span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}

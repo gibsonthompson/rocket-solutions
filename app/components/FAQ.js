@@ -2,9 +2,13 @@
 import { useState } from 'react'
 import { FaChevronDown } from 'react-icons/fa'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAgency } from '../../lib/AgencyContext'
 
 export default function FAQ() {
   const [openIndex, setOpenIndex] = useState(0)
+  const { agency } = useAgency()
+  
+  const primaryColor = agency?.primary_color || '#fa8820'
 
   const faqs = [
     {
@@ -50,7 +54,8 @@ export default function FAQ() {
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-primary font-semibold mb-4 block"
+            className="font-semibold mb-4 block"
+            style={{ color: primaryColor }}
           >
             FAQ
           </motion.span>
@@ -88,9 +93,10 @@ export default function FAQ() {
                 onClick={() => setOpenIndex(openIndex === index ? -1 : index)}
                 className={`w-full text-left p-6 rounded-xl transition-all duration-300 ${
                   openIndex === index
-                    ? 'bg-primary text-white shadow-lg'
+                    ? 'text-white shadow-lg'
                     : 'bg-gray-50 hover:bg-gray-100 text-dark'
                 }`}
+                style={openIndex === index ? { backgroundColor: primaryColor } : {}}
               >
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-lg pr-4">{faq.question}</span>

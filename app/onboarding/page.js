@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FaRocket, FaArrowRight, FaArrowLeft, FaCheck, FaBuilding, FaPhone, FaMapMarkerAlt, FaImage, FaEye, FaUpload, FaTimes, FaDownload } from 'react-icons/fa'
 import toast, { Toaster } from 'react-hot-toast'
+import { useAgency } from '../../lib/AgencyContext'
 
 const STEPS = [
   { id: 1, name: 'Business Info', icon: FaBuilding },
@@ -173,6 +174,7 @@ function extractColorsFromImage(imageElement, bgColor = null) {
 }
 
 export default function OnboardingPage() {
+  const { agency } = useAgency()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     // Step 1 - Business Info
@@ -206,6 +208,11 @@ export default function OnboardingPage() {
   const [showPWAPrompt, setShowPWAPrompt] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const fileInputRef = useRef(null)
+
+  // Convert agency prices from cents to dollars
+  const starterPrice = agency.price_starter ? Math.round(agency.price_starter / 100) : 49
+  const proPrice = agency.price_pro ? Math.round(agency.price_pro / 100) : 99
+  const growthPrice = agency.price_growth ? Math.round(agency.price_growth / 100) : 149
 
   // Restore form data from sessionStorage on mount
   useEffect(() => {
@@ -377,6 +384,7 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan: formData.plan,
+          agencyId: agency.id, // Pass agency ID for proper linking
           siteData: {
             businessName: formData.businessName,
             industry: formData.industry === 'Other' ? formData.otherIndustry : formData.industry,
@@ -424,7 +432,10 @@ export default function OnboardingPage() {
             className="fixed bottom-4 left-4 right-4 bg-white rounded-2xl shadow-2xl p-4 z-50 md:hidden"
           >
             <div className="flex items-start gap-3">
-              <div className="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center flex-shrink-0">
+              <div 
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: agency.primary_color }}
+              >
                 <FaDownload className="text-white text-xl" />
               </div>
               <div className="flex-1">
@@ -444,7 +455,8 @@ export default function OnboardingPage() {
               </button>
               <button 
                 onClick={installPWA}
-                className="flex-1 py-2 bg-primary text-white rounded-lg font-medium"
+                className="flex-1 py-2 text-white rounded-lg font-medium"
+                style={{ backgroundColor: agency.primary_color }}
               >
                 Install
               </button>
@@ -457,14 +469,24 @@ export default function OnboardingPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-white">
-            <Image 
-              src="/logo.png" 
-              alt="Rocket Solutions" 
-              width={44} 
-              height={44}
-              className="object-contain"
-            />
-            <span className="text-xl font-bold">Rocket Solutions</span>
+            {agency.logo_url ? (
+              <Image 
+                src={agency.logo_url} 
+                alt={agency.name} 
+                width={44} 
+                height={44}
+                className="object-contain"
+              />
+            ) : (
+              <Image 
+                src="/logo.png" 
+                alt={agency.name} 
+                width={44} 
+                height={44}
+                className="object-contain"
+              />
+            )}
+            <span className="text-xl font-bold">{agency.name}</span>
           </div>
         </div>
 
@@ -472,13 +494,16 @@ export default function OnboardingPage() {
         <div className="flex justify-between mb-8 px-4">
           {STEPS.map((s, index) => (
             <div key={s.id} className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                step > s.id 
-                  ? 'bg-green-500 text-white'
-                  : step === s.id
-                    ? 'bg-primary text-white scale-110'
-                    : 'bg-white/20 text-white/50'
-              }`}>
+              <div 
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  step > s.id 
+                    ? 'bg-green-500 text-white'
+                    : step === s.id
+                      ? 'text-white scale-110'
+                      : 'bg-white/20 text-white/50'
+                }`}
+                style={step === s.id ? { backgroundColor: agency.primary_color } : {}}
+              >
                 {step > s.id ? <FaCheck /> : <s.icon />}
               </div>
               <span className={`text-xs mt-2 hidden sm:block ${
@@ -535,6 +560,11 @@ export default function OnboardingPage() {
                                 ? 'border-primary bg-primary/10 text-primary'
                                 : 'border-gray-200 hover:border-primary/50'
                             }`}
+                            style={formData.industry === industry ? { 
+                              borderColor: agency.primary_color,
+                              backgroundColor: `${agency.primary_color}15`,
+                              color: agency.primary_color
+                            } : {}}
                           >
                             {industry}
                           </button>
@@ -693,6 +723,7 @@ export default function OnboardingPage() {
                         <div 
                           onClick={() => fileInputRef.current?.click()}
                           className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-all"
+                          style={{ '--hover-border': agency.primary_color }}
                         >
                           <FaUpload className="mx-auto text-3xl text-gray-400 mb-3" />
                           <p className="text-gray-600 font-medium">Click to upload your logo</p>
@@ -895,9 +926,9 @@ export default function OnboardingPage() {
                       </label>
                       <div className="space-y-3">
                         {[
-                          { id: 'starter', name: 'Starter', price: 49, desc: 'Website + booking system' },
-                          { id: 'pro', name: 'Pro', price: 99, desc: 'Everything + SEO pages + SMS', popular: true },
-                          { id: 'growth', name: 'Growth', price: 149, desc: 'Everything + AI features' },
+                          { id: 'starter', name: 'Starter', price: starterPrice, desc: 'Website + booking system' },
+                          { id: 'pro', name: 'Pro', price: proPrice, desc: 'Everything + SEO pages + SMS', popular: true },
+                          { id: 'growth', name: 'Growth', price: growthPrice, desc: 'Everything + AI features' },
                         ].map((plan) => (
                           <button
                             key={plan.id}
@@ -908,13 +939,22 @@ export default function OnboardingPage() {
                                 ? 'border-primary bg-primary/5'
                                 : 'border-gray-200 hover:border-primary/50'
                             }`}
+                            style={formData.plan === plan.id ? {
+                              borderColor: agency.primary_color,
+                              backgroundColor: `${agency.primary_color}10`
+                            } : {}}
                           >
                             <div className="flex justify-between items-center">
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className="font-bold">{plan.name}</span>
                                   {plan.popular && (
-                                    <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">Popular</span>
+                                    <span 
+                                      className="text-white text-xs px-2 py-0.5 rounded-full"
+                                      style={{ backgroundColor: agency.primary_color }}
+                                    >
+                                      Popular
+                                    </span>
                                   )}
                                 </div>
                                 <p className="text-sm text-gray-500">{plan.desc}</p>
@@ -950,14 +990,16 @@ export default function OnboardingPage() {
             {step < STEPS.length ? (
               <button
                 onClick={nextStep}
-                className="btn-primary flex items-center gap-2"
+                className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-lg"
+                style={{ backgroundColor: agency.primary_color }}
               >
                 Continue <FaArrowRight />
               </button>
             ) : (
               <button
                 onClick={handleSubmit}
-                className="btn-primary flex items-center gap-2"
+                className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-lg"
+                style={{ backgroundColor: agency.primary_color }}
               >
                 Launch My Website <FaRocket />
               </button>
@@ -967,7 +1009,7 @@ export default function OnboardingPage() {
 
         {/* Help text */}
         <p className="text-center text-white/50 text-sm mt-6">
-          Questions? Email us at hello@rocketsolutions.io
+          Questions? Email us at {agency.support_email || 'support@example.com'}
         </p>
       </div>
     </div>
