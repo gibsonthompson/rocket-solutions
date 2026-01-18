@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { 
   FaSave, FaSpinner, FaCamera, FaPalette, FaBuilding, 
   FaEnvelope, FaPhone, FaDollarSign, FaLock, FaEye, FaEyeSlash,
-  FaTimes
+  FaChevronDown, FaChevronUp
 } from 'react-icons/fa'
 import { Toaster, toast } from 'react-hot-toast'
 import { useAgencyAuth } from '../../../lib/AgencyAuthContext'
@@ -19,6 +19,7 @@ export default function AgencySettingsPage() {
   
   const [isInitialized, setIsInitialized] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [showAdvancedColors, setShowAdvancedColors] = useState(false)
   
   // Form state
   const [logoPreview, setLogoPreview] = useState(null)
@@ -85,24 +86,20 @@ export default function AgencySettingsPage() {
     const edgePixels = []
     const step = 20
     
-    // Top and bottom edges
     for (let x = 0; x < canvas.width; x += step) {
       edgePixels.push(ctx.getImageData(x, 0, 1, 1).data)
       edgePixels.push(ctx.getImageData(x, canvas.height - 1, 1, 1).data)
     }
-    // Left and right edges
     for (let y = 0; y < canvas.height; y += step) {
       edgePixels.push(ctx.getImageData(0, y, 1, 1).data)
       edgePixels.push(ctx.getImageData(canvas.width - 1, y, 1, 1).data)
     }
     
-    // Check for transparency
     const transparentCount = edgePixels.filter(p => p[3] < 128).length
     if (transparentCount > edgePixels.length * 0.5) {
       return { css: 'rgb(255, 255, 255)', r: 255, g: 255, b: 255 }
     }
     
-    // Average the edge colors
     let r = 0, g = 0, b = 0, count = 0
     edgePixels.forEach(p => {
       if (p[3] >= 128) {
@@ -143,7 +140,6 @@ export default function AgencySettingsPage() {
       
       if (a < 128) continue
       
-      // Skip if too close to background
       if (bgColor) {
         const dist = Math.sqrt(
           Math.pow(r - bgColor.r, 2) + 
@@ -153,7 +149,6 @@ export default function AgencySettingsPage() {
         if (dist < 50) continue
       }
       
-      // Quantize - use floor to avoid 256
       const qr = Math.min(240, Math.floor(r / 16) * 16)
       const qg = Math.min(240, Math.floor(g / 16) * 16)
       const qb = Math.min(240, Math.floor(b / 16) * 16)
@@ -161,7 +156,6 @@ export default function AgencySettingsPage() {
       colorCounts[key] = (colorCounts[key] || 0) + 1
     }
     
-    // Convert to HSL and filter
     const colors = Object.entries(colorCounts)
       .map(([key, count]) => {
         const [r, g, b] = key.split(',').map(Number)
@@ -191,7 +185,6 @@ export default function AgencySettingsPage() {
       setLogoPreview(dataUrl)
       setLogoFile(dataUrl)
       
-      // Create image for color detection
       const img = new Image()
       img.onload = () => {
         const bgColor = detectLogoBackground(img)
@@ -200,13 +193,10 @@ export default function AgencySettingsPage() {
         const colors = extractColorsFromImage(img, bgColor)
         setExtractedColors(colors)
         
-        // Merge with existing palette (dedupe)
         if (colors.length > 0) {
           const merged = [...new Set([...colors, ...brandPalette])]
           setBrandPalette(merged)
-          // Auto-select first color as primary
           setPrimaryColor(colors[0])
-          // Auto-select second color as secondary if available
           if (colors.length > 1) {
             setSecondaryColor(colors[1])
           }
@@ -306,7 +296,6 @@ export default function AgencySettingsPage() {
     )
   }
 
-  // Display colors (saved palette)
   const displayColors = brandPalette.length > 0 ? brandPalette : extractedColors
 
   return (
@@ -347,7 +336,6 @@ export default function AgencySettingsPage() {
           </div>
           
           <div className="flex items-start gap-6">
-            {/* Logo Preview */}
             <div 
               className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
               onClick={() => fileInputRef.current?.click()}
@@ -367,7 +355,6 @@ export default function AgencySettingsPage() {
               className="hidden"
             />
             
-            {/* Background Color Info */}
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-medium text-gray-700">Nav background color (auto-detected):</span>
@@ -403,26 +390,28 @@ export default function AgencySettingsPage() {
             </div>
           </div>
           
-          {/* Saved/Detected Colors Palette */}
-          {displayColors.length > 0 && (
-            <div className="mb-6">
-              <p className="text-sm text-gray-600 mb-3">Choose from your brand palette:</p>
-              
+          {/* Palette Swatches */}
+          {displayColors.length > 0 ? (
+            <div className="space-y-5">
               {/* Primary Color Selection */}
-              <div className="mb-4">
+              <div>
                 <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Primary Color</p>
                 <div className="flex flex-wrap gap-3">
                   {displayColors.map((color, i) => (
                     <button
                       key={`primary-${i}`}
                       onClick={() => setPrimaryColor(color)}
-                      className="w-12 h-12 rounded-lg transition-all hover:scale-110"
-                      style={{ 
-                        backgroundColor: color,
-                        boxShadow: primaryColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : '0 1px 3px rgba(0,0,0,0.1)'
-                      }}
-                      title={`Set as primary: ${color}`}
-                    />
+                      className="flex flex-col items-center gap-1.5"
+                    >
+                      <div
+                        className="w-12 h-12 rounded-lg transition-all hover:scale-110"
+                        style={{ 
+                          backgroundColor: color,
+                          boxShadow: primaryColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : '0 1px 3px rgba(0,0,0,0.1)'
+                        }}
+                      />
+                      <span className="text-[10px] text-gray-400 font-mono">{color}</span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -435,66 +424,75 @@ export default function AgencySettingsPage() {
                     <button
                       key={`secondary-${i}`}
                       onClick={() => setSecondaryColor(color)}
-                      className="w-12 h-12 rounded-lg transition-all hover:scale-110"
-                      style={{ 
-                        backgroundColor: color,
-                        boxShadow: secondaryColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : '0 1px 3px rgba(0,0,0,0.1)'
-                      }}
-                      title={`Set as secondary: ${color}`}
-                    />
+                      className="flex flex-col items-center gap-1.5"
+                    >
+                      <div
+                        className="w-12 h-12 rounded-lg transition-all hover:scale-110"
+                        style={{ 
+                          backgroundColor: color,
+                          boxShadow: secondaryColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : '0 1px 3px rgba(0,0,0,0.1)'
+                        }}
+                      />
+                      <span className="text-[10px] text-gray-400 font-mono">{color}</span>
+                    </button>
                   ))}
                 </div>
               </div>
             </div>
+          ) : (
+            <p className="text-gray-400 text-sm">Upload a logo to auto-detect brand colors, or use custom colors below.</p>
           )}
           
-          {/* Manual Color Pickers */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                  style={{ '--tw-ring-color': brandPrimaryColor }}
-                />
+          {/* Advanced: Custom Color Pickers */}
+          <div className="mt-5 pt-5 border-t border-gray-100">
+            <button
+              onClick={() => setShowAdvancedColors(!showAdvancedColors)}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              {showAdvancedColors ? <FaChevronUp /> : <FaChevronDown />}
+              Custom colors
+            </button>
+            
+            {showAdvancedColors && (
+              <div className="grid md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
+                      style={{ '--tw-ring-color': brandPrimaryColor }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Color</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={secondaryColor}
+                      onChange={(e) => setSecondaryColor(e.target.value)}
+                      className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={secondaryColor}
+                      onChange={(e) => setSecondaryColor(e.target.value)}
+                      className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
+                      style={{ '--tw-ring-color': brandPrimaryColor }}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Color</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={secondaryColor}
-                  onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={secondaryColor}
-                  onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                  style={{ '--tw-ring-color': brandPrimaryColor }}
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Gradient Preview */}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Gradient Preview</label>
-            <div 
-              className="h-12 rounded-lg"
-              style={{ backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
-            />
+            )}
           </div>
         </div>
 
