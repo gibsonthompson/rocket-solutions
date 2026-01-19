@@ -187,8 +187,8 @@ async function handleCheckoutComplete(session) {
     throw updateError
   }
 
-  // Provision the subdomain (Cloudflare DNS + Vercel domain)
-  const provisionResult = await provisionSubdomain(company_id, subdomain)
+  // Provision the subdomain (Cloudflare DNS + Vercel domain) - NOW WITH AGENCY ID
+  const provisionResult = await provisionSubdomain(company_id, subdomain, agency_id)
   
   if (!provisionResult.success) {
     console.error('Subdomain provisioning failed:', provisionResult.error)
@@ -201,10 +201,14 @@ async function handleCheckoutComplete(session) {
   console.log(`Company: ${company_name}`)
   console.log(`Email: ${email}`)
   console.log(`Plan: ${actualPlan}`)
-  console.log(`Subdomain: ${subdomain}.gorocketsolutions.com`)
+  console.log(`Subdomain: ${subdomain}`)
   console.log(`Temp Password: ${tempPassword}`)
-  console.log(`Dashboard: https://${subdomain}.gorocketsolutions.com/dashboard`)
   if (agency_id) console.log(`Agency ID: ${agency_id}`)
+  if (provisionResult.data?.usedAgencyDomain) {
+    console.log(`Domain: ${provisionResult.data.domain} (agency custom domain)`)
+  } else {
+    console.log(`Dashboard: https://${subdomain}.gorocketsolutions.com/dashboard`)
+  }
   console.log('═══════════════════════════════════════')
 
   return { success: true, subdomain, company }
@@ -279,7 +283,7 @@ async function handleSubscriptionCancelled(subscription) {
   }
 }
 
-async function provisionSubdomain(companyId, subdomain) {
+async function provisionSubdomain(companyId, subdomain, agencyId) {
   const PROVISION_API_URL = process.env.PROVISION_API_URL || 'https://junklinellc.com/api/provision-subdomain'
   const PROVISION_API_SECRET = process.env.PROVISION_API_SECRET
 
@@ -294,7 +298,11 @@ async function provisionSubdomain(companyId, subdomain) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${PROVISION_API_SECRET}`
       },
-      body: JSON.stringify({ companyId, subdomain })
+      body: JSON.stringify({ 
+        companyId, 
+        subdomain,
+        agencyId  // Pass agency ID for custom domain lookup
+      })
     })
 
     const data = await response.json()

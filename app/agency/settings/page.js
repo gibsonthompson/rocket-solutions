@@ -6,7 +6,7 @@ import {
   FaSave, FaSpinner, FaCamera, FaPalette, FaBuilding, 
   FaEnvelope, FaPhone, FaDollarSign, FaLock, FaEye, FaEyeSlash,
   FaChevronDown, FaChevronUp, FaStripe, FaCheckCircle, FaExclamationCircle,
-  FaExternalLinkAlt
+  FaExternalLinkAlt, FaGlobe, FaCopy
 } from 'react-icons/fa'
 import { Toaster, toast } from 'react-hot-toast'
 import { useAgencyAuth } from '../../../lib/AgencyAuthContext'
@@ -27,6 +27,14 @@ export default function AgencySettingsPage() {
   const [stripeStatus, setStripeStatus] = useState(null)
   const [isLoadingStripe, setIsLoadingStripe] = useState(true)
   const [isConnectingStripe, setIsConnectingStripe] = useState(false)
+  
+  // Domain state
+  const [customDomain, setCustomDomain] = useState('')
+  const [domainVerified, setDomainVerified] = useState(false)
+  const [dnsConfigured, setDnsConfigured] = useState(false)
+  const [isLoadingDomain, setIsLoadingDomain] = useState(true)
+  const [isSavingDomain, setIsSavingDomain] = useState(false)
+  const [isVerifyingDomain, setIsVerifyingDomain] = useState(false)
   
   // Form state
   const [logoPreview, setLogoPreview] = useState(null)
@@ -59,7 +67,6 @@ export default function AgencySettingsPage() {
     const stripeConnect = searchParams.get('stripe_connect')
     if (stripeConnect === 'success') {
       toast.success('Stripe account connected successfully!')
-      // Clean up URL
       router.replace('/agency/settings', { scroll: false })
     } else if (stripeConnect === 'pending') {
       toast('Stripe setup incomplete. Please finish connecting your account.', { icon: '⚠️' })
@@ -74,6 +81,13 @@ export default function AgencySettingsPage() {
     }
   }, [agency?.id])
 
+  // Fetch domain status
+  useEffect(() => {
+    if (agency?.id) {
+      fetchDomainStatus()
+    }
+  }, [agency?.id])
+
   const fetchStripeStatus = async () => {
     setIsLoadingStripe(true)
     try {
@@ -84,6 +98,23 @@ export default function AgencySettingsPage() {
       console.error('Failed to fetch Stripe status:', err)
     } finally {
       setIsLoadingStripe(false)
+    }
+  }
+
+  const fetchDomainStatus = async () => {
+    setIsLoadingDomain(true)
+    try {
+      const response = await fetch(`/api/agency/domain?agency_id=${agency.id}`)
+      const data = await response.json()
+      if (data.custom_domain) {
+        setCustomDomain(data.custom_domain)
+        setDomainVerified(data.domain_verified || false)
+        setDnsConfigured(data.dns_configured || false)
+      }
+    } catch (err) {
+      console.error('Failed to fetch domain status:', err)
+    } finally {
+      setIsLoadingDomain(false)
     }
   }
 
@@ -102,7 +133,6 @@ export default function AgencySettingsPage() {
         throw new Error(data.error || 'Failed to create Stripe Connect link')
       }
       
-      // Redirect to Stripe onboarding
       window.location.href = data.url
     } catch (err) {
       toast.error(err.message)
@@ -112,6 +142,102 @@ export default function AgencySettingsPage() {
 
   const openStripeDashboard = () => {
     window.open('https://dashboard.stripe.com', '_blank')
+  }
+
+  // Domain handlers
+  const handleSaveDomain = async () => {
+    if (!customDomain.trim()) {
+      toast.error('Please enter a domain')
+      return
+    }
+    
+    setIsSavingDomain(true)
+    try {
+      const response = await fetch('/api/agency/domain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          agencyId: agency.id, 
+          domain: customDomain 
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save domain')
+      }
+      
+      setCustomDomain(data.custom_domain)
+      setDomainVerified(data.domain_verified)
+      setDnsConfigured(data.dns_configured)
+      toast.success('Domain saved! Configure your DNS to continue.')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setIsSavingDomain(false)
+    }
+  }
+
+  const handleVerifyDomain = async () => {
+    setIsVerifyingDomain(true)
+    try {
+      const response = await fetch('/api/agency/domain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          agencyId: agency.id, 
+          action: 'verify' 
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Verification failed')
+      }
+      
+      setDomainVerified(true)
+      toast.success('Domain verified! Your customers will now get subdomains on your domain.')
+    } catch (err) {
+      toast.error(err.message)
+      fetchDomainStatus()
+    } finally {
+      setIsVerifyingDomain(false)
+    }
+  }
+
+  const handleRemoveDomain = async () => {
+    if (!confirm('Remove custom domain? Your customers will use gorocketsolutions.com instead.')) {
+      return
+    }
+    
+    try {
+      const response = await fetch('/api/agency/domain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          agencyId: agency.id, 
+          action: 'remove' 
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to remove domain')
+      }
+      
+      setCustomDomain('')
+      setDomainVerified(false)
+      setDnsConfigured(false)
+      toast.success('Domain removed')
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text)
+    toast.success('Copied to clipboard!')
   }
 
   // Initialize form with agency data
@@ -133,7 +259,6 @@ export default function AgencySettingsPage() {
     }
   }, [agency, isInitialized])
 
-  // Helper to convert RGB to valid hex
   const rgbToHex = (r, g, b) => {
     const toHex = (n) => {
       const clamped = Math.max(0, Math.min(255, n))
@@ -142,7 +267,6 @@ export default function AgencySettingsPage() {
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`
   }
 
-  // Color detection functions
   const detectLogoBackground = (img) => {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
@@ -369,7 +493,6 @@ export default function AgencySettingsPage() {
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
       <Toaster position="top-right" toastOptions={{ style: { marginTop: '60px' } }} />
       
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Settings</h1>
@@ -391,10 +514,7 @@ export default function AgencySettingsPage() {
         {/* Stripe Connect Section */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: '#635bff20' }}
-            >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#635bff20' }}>
               <FaStripe className="text-[#635bff] text-xl" />
             </div>
             <div>
@@ -409,7 +529,6 @@ export default function AgencySettingsPage() {
               <span className="text-gray-500">Checking Stripe status...</span>
             </div>
           ) : stripeStatus?.onboarding_complete ? (
-            // Connected and complete
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
                 <FaCheckCircle className="text-green-500 text-xl flex-shrink-0" />
@@ -418,16 +537,12 @@ export default function AgencySettingsPage() {
                   <p className="text-sm text-green-600">Your account is ready to accept payments</p>
                 </div>
               </div>
-              <button
-                onClick={openStripeDashboard}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={openStripeDashboard} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                 <FaExternalLinkAlt className="text-xs" />
                 Open Stripe Dashboard
               </button>
             </div>
           ) : stripeStatus?.connected ? (
-            // Connected but incomplete
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <FaExclamationCircle className="text-yellow-500 text-xl flex-shrink-0" />
@@ -436,54 +551,114 @@ export default function AgencySettingsPage() {
                   <p className="text-sm text-yellow-600">Please complete your Stripe account setup to accept payments</p>
                 </div>
               </div>
-              <button
-                onClick={handleConnectStripe}
-                disabled={isConnectingStripe}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: '#635bff' }}
-              >
-                {isConnectingStripe ? (
-                  <><FaSpinner className="animate-spin" /> Connecting...</>
-                ) : (
-                  <>Continue Setup</>
-                )}
+              <button onClick={handleConnectStripe} disabled={isConnectingStripe} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: '#635bff' }}>
+                {isConnectingStripe ? <><FaSpinner className="animate-spin" /> Connecting...</> : <>Continue Setup</>}
               </button>
             </div>
           ) : (
-            // Not connected
             <div className="space-y-4">
               <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-gray-600 text-sm">
-                  Connect your Stripe account to start accepting payments from your customers. 
-                  You&apos;ll receive payments directly to your bank account.
-                </p>
+                <p className="text-gray-600 text-sm">Connect your Stripe account to start accepting payments from your customers. You&apos;ll receive payments directly to your bank account.</p>
                 <ul className="mt-3 space-y-2 text-sm text-gray-500">
-                  <li className="flex items-center gap-2">
-                    <FaCheckCircle className="text-gray-400" />
-                    Accept credit cards and other payment methods
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <FaCheckCircle className="text-gray-400" />
-                    Automatic monthly billing for your customers
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <FaCheckCircle className="text-gray-400" />
-                    Payments go directly to your bank account
-                  </li>
+                  <li className="flex items-center gap-2"><FaCheckCircle className="text-gray-400" />Accept credit cards and other payment methods</li>
+                  <li className="flex items-center gap-2"><FaCheckCircle className="text-gray-400" />Automatic monthly billing for your customers</li>
+                  <li className="flex items-center gap-2"><FaCheckCircle className="text-gray-400" />Payments go directly to your bank account</li>
                 </ul>
               </div>
-              <button
-                onClick={handleConnectStripe}
-                disabled={isConnectingStripe}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: '#635bff' }}
-              >
-                {isConnectingStripe ? (
-                  <><FaSpinner className="animate-spin" /> Connecting...</>
-                ) : (
-                  <><FaStripe className="text-lg" /> Connect Stripe Account</>
-                )}
+              <button onClick={handleConnectStripe} disabled={isConnectingStripe} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: '#635bff' }}>
+                {isConnectingStripe ? <><FaSpinner className="animate-spin" /> Connecting...</> : <><FaStripe className="text-lg" /> Connect Stripe Account</>}
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* Custom Domain Section */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandPrimaryColor}15` }}>
+              <FaGlobe style={{ color: brandPrimaryColor }} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Custom Domain</h2>
+              <p className="text-sm text-gray-500">Use your own domain for customer websites</p>
+            </div>
+          </div>
+          
+          {isLoadingDomain ? (
+            <div className="flex items-center gap-3 py-4">
+              <FaSpinner className="animate-spin text-gray-400" />
+              <span className="text-gray-500">Loading domain settings...</span>
+            </div>
+          ) : domainVerified ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                <FaCheckCircle className="text-green-500 text-xl flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium text-green-800">Domain Active</p>
+                  <p className="text-sm text-green-600">Customer sites will use <strong>*.{customDomain}</strong></p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <code className="flex-1 px-4 py-2.5 bg-gray-100 rounded-lg text-sm text-gray-700">{customDomain}</code>
+                <button onClick={handleRemoveDomain} className="px-4 py-2.5 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">Remove</button>
+              </div>
+            </div>
+          ) : customDomain ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <FaExclamationCircle className="text-yellow-500 text-xl flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-yellow-800">DNS Configuration Required</p>
+                  <p className="text-sm text-yellow-600">Add the DNS record below, then click Verify</p>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-sm font-medium text-gray-700 mb-3">Add this DNS record in your domain provider (GoDaddy, Namecheap, Cloudflare, etc.):</p>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Type</p>
+                    <code className="px-2 py-1 bg-white rounded border border-gray-200">CNAME</code>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Name / Host</p>
+                    <div className="flex items-center gap-2">
+                      <code className="px-2 py-1 bg-white rounded border border-gray-200">*</code>
+                      <button onClick={() => copyToClipboard('*')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Value / Target</p>
+                    <div className="flex items-center gap-2">
+                      <code className="px-2 py-1 bg-white rounded border border-gray-200 text-xs">cname.vercel-dns.com</code>
+                      <button onClick={() => copyToClipboard('cname.vercel-dns.com')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-3">DNS changes can take up to 48 hours to propagate, but usually complete within minutes.</p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <code className="flex-1 px-4 py-2.5 bg-gray-100 rounded-lg text-sm text-gray-700">{customDomain}</code>
+                <button onClick={handleVerifyDomain} disabled={isVerifyingDomain} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: brandPrimaryColor }}>
+                  {isVerifyingDomain ? <><FaSpinner className="animate-spin" /> Verifying...</> : <>Verify Domain</>}
+                </button>
+                <button onClick={handleRemoveDomain} className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Remove</button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-gray-600 text-sm">Add a custom domain so your customers get websites like <strong>joes-plumbing.yourdomain.com</strong> instead of gorocketsolutions.com.</p>
+                <p className="text-gray-500 text-xs mt-2">You&apos;ll need access to your domain&apos;s DNS settings to complete setup.</p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <input type="text" value={customDomain} onChange={(e) => setCustomDomain(e.target.value)} placeholder="yourdomain.com" className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
+                <button onClick={handleSaveDomain} disabled={isSavingDomain || !customDomain.trim()} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: brandPrimaryColor }}>
+                  {isSavingDomain ? <><FaSpinner className="animate-spin" /> Saving...</> : <>Add Domain</>}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -491,10 +666,7 @@ export default function AgencySettingsPage() {
         {/* Agency Logo */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${brandPrimaryColor}15` }}
-            >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandPrimaryColor}15` }}>
               <FaCamera style={{ color: brandPrimaryColor }} />
             </div>
             <div>
@@ -504,41 +676,20 @@ export default function AgencySettingsPage() {
           </div>
           
           <div className="flex items-start gap-6">
-            <div 
-              className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
-              onClick={() => fileInputRef.current?.click()}
-              style={logoPreview ? { borderStyle: 'solid', borderColor: '#e5e7eb' } : {}}
-            >
-              {logoPreview ? (
-                <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" />
-              ) : (
-                <FaCamera className="text-2xl text-gray-400" />
-              )}
+            <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors overflow-hidden" onClick={() => fileInputRef.current?.click()} style={logoPreview ? { borderStyle: 'solid', borderColor: '#e5e7eb' } : {}}>
+              {logoPreview ? <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" /> : <FaCamera className="text-2xl text-gray-400" />}
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleLogoUpload}
-              className="hidden"
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
             
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-medium text-gray-700">Nav background color (auto-detected):</span>
               </div>
               <div className="flex items-center gap-3">
-                <div 
-                  className="w-8 h-8 rounded border border-gray-200"
-                  style={{ backgroundColor: logoBackgroundColor || '#ffffff' }}
-                />
-                <code className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {logoBackgroundColor || 'rgb(255, 255, 255)'}
-                </code>
+                <div className="w-8 h-8 rounded border border-gray-200" style={{ backgroundColor: logoBackgroundColor || '#ffffff' }} />
+                <code className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">{logoBackgroundColor || 'rgb(255, 255, 255)'}</code>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
-                This color is used for the navigation background when scrolled.
-              </p>
+              <p className="text-xs text-gray-400 mt-2">This color is used for the navigation background when scrolled.</p>
             </div>
           </div>
         </div>
@@ -546,10 +697,7 @@ export default function AgencySettingsPage() {
         {/* Brand Colors */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${brandPrimaryColor}15` }}
-            >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandPrimaryColor}15` }}>
               <FaPalette style={{ color: brandPrimaryColor }} />
             </div>
             <div>
@@ -558,49 +706,25 @@ export default function AgencySettingsPage() {
             </div>
           </div>
           
-          {/* Palette Swatches */}
           {displayColors.length > 0 ? (
             <div className="space-y-5">
-              {/* Primary Color Selection */}
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Primary Color</p>
                 <div className="flex flex-wrap gap-3">
                   {displayColors.map((color, i) => (
-                    <button
-                      key={`primary-${i}`}
-                      onClick={() => setPrimaryColor(color)}
-                      className="flex flex-col items-center gap-1.5"
-                    >
-                      <div
-                        className="w-12 h-12 rounded-lg transition-all hover:scale-110"
-                        style={{ 
-                          backgroundColor: color,
-                          boxShadow: primaryColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : '0 1px 3px rgba(0,0,0,0.1)'
-                        }}
-                      />
+                    <button key={`primary-${i}`} onClick={() => setPrimaryColor(color)} className="flex flex-col items-center gap-1.5">
+                      <div className="w-12 h-12 rounded-lg transition-all hover:scale-110" style={{ backgroundColor: color, boxShadow: primaryColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : '0 1px 3px rgba(0,0,0,0.1)' }} />
                       <span className="text-[10px] text-gray-400 font-mono">{color}</span>
                     </button>
                   ))}
                 </div>
               </div>
-              
-              {/* Secondary Color Selection */}
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Secondary Color (for gradients)</p>
                 <div className="flex flex-wrap gap-3">
                   {displayColors.map((color, i) => (
-                    <button
-                      key={`secondary-${i}`}
-                      onClick={() => setSecondaryColor(color)}
-                      className="flex flex-col items-center gap-1.5"
-                    >
-                      <div
-                        className="w-12 h-12 rounded-lg transition-all hover:scale-110"
-                        style={{ 
-                          backgroundColor: color,
-                          boxShadow: secondaryColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : '0 1px 3px rgba(0,0,0,0.1)'
-                        }}
-                      />
+                    <button key={`secondary-${i}`} onClick={() => setSecondaryColor(color)} className="flex flex-col items-center gap-1.5">
+                      <div className="w-12 h-12 rounded-lg transition-all hover:scale-110" style={{ backgroundColor: color, boxShadow: secondaryColor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : '0 1px 3px rgba(0,0,0,0.1)' }} />
                       <span className="text-[10px] text-gray-400 font-mono">{color}</span>
                     </button>
                   ))}
@@ -611,12 +735,8 @@ export default function AgencySettingsPage() {
             <p className="text-gray-400 text-sm">Upload a logo to auto-detect brand colors, or use custom colors below.</p>
           )}
           
-          {/* Advanced: Custom Color Pickers */}
           <div className="mt-5 pt-5 border-t border-gray-100">
-            <button
-              onClick={() => setShowAdvancedColors(!showAdvancedColors)}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
+            <button onClick={() => setShowAdvancedColors(!showAdvancedColors)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
               {showAdvancedColors ? <FaChevronUp /> : <FaChevronDown />}
               Custom colors
             </button>
@@ -626,37 +746,15 @@ export default function AgencySettingsPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
                   <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                      style={{ '--tw-ring-color': brandPrimaryColor }}
-                    />
+                    <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer" />
+                    <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Color</label>
                   <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                      style={{ '--tw-ring-color': brandPrimaryColor }}
-                    />
+                    <input type="color" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer" />
+                    <input type="text" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
                   </div>
                 </div>
               </div>
@@ -667,10 +765,7 @@ export default function AgencySettingsPage() {
         {/* Agency Information */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${brandPrimaryColor}15` }}
-            >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandPrimaryColor}15` }}>
               <FaBuilding style={{ color: brandPrimaryColor }} />
             </div>
             <div>
@@ -682,24 +777,11 @@ export default function AgencySettingsPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Agency Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': brandPrimaryColor }}
-              />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Tagline</label>
-              <input
-                type="text"
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value)}
-                placeholder="e.g., Helping home service pros get found online"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': brandPrimaryColor }}
-              />
+              <input type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="e.g., Helping home service pros get found online" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
             </div>
           </div>
         </div>
@@ -707,10 +789,7 @@ export default function AgencySettingsPage() {
         {/* Support Contact */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${brandPrimaryColor}15` }}
-            >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandPrimaryColor}15` }}>
               <FaEnvelope style={{ color: brandPrimaryColor }} />
             </div>
             <div>
@@ -722,24 +801,11 @@ export default function AgencySettingsPage() {
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Support Email</label>
-              <input
-                type="email"
-                value={supportEmail}
-                onChange={(e) => setSupportEmail(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': brandPrimaryColor }}
-              />
+              <input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Support Phone</label>
-              <input
-                type="tel"
-                value={supportPhone}
-                onChange={(e) => setSupportPhone(e.target.value)}
-                placeholder="(555) 123-4567"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': brandPrimaryColor }}
-              />
+              <input type="tel" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} placeholder="(555) 123-4567" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
             </div>
           </div>
         </div>
@@ -747,10 +813,7 @@ export default function AgencySettingsPage() {
         {/* Pricing */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${brandPrimaryColor}15` }}
-            >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandPrimaryColor}15` }}>
               <FaDollarSign style={{ color: brandPrimaryColor }} />
             </div>
             <div>
@@ -762,33 +825,15 @@ export default function AgencySettingsPage() {
           <div className="grid md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Starter ($/mo)</label>
-              <input
-                type="number"
-                value={priceStarter}
-                onChange={(e) => setPriceStarter(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': brandPrimaryColor }}
-              />
+              <input type="number" value={priceStarter} onChange={(e) => setPriceStarter(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Pro ($/mo)</label>
-              <input
-                type="number"
-                value={pricePro}
-                onChange={(e) => setPricePro(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': brandPrimaryColor }}
-              />
+              <input type="number" value={pricePro} onChange={(e) => setPricePro(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Growth ($/mo)</label>
-              <input
-                type="number"
-                value={priceGrowth}
-                onChange={(e) => setPriceGrowth(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                style={{ '--tw-ring-color': brandPrimaryColor }}
-              />
+              <input type="number" value={priceGrowth} onChange={(e) => setPriceGrowth(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
             </div>
           </div>
         </div>
@@ -796,10 +841,7 @@ export default function AgencySettingsPage() {
         {/* Password */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${brandPrimaryColor}15` }}
-            >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandPrimaryColor}15` }}>
               <FaLock style={{ color: brandPrimaryColor }} />
             </div>
             <div>
@@ -812,18 +854,8 @@ export default function AgencySettingsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
               <div className="relative">
-                <input
-                  type={showPasswords ? 'text' : 'password'}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 pr-12"
-                  style={{ '--tw-ring-color': brandPrimaryColor }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPasswords(!showPasswords)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
+                <input type={showPasswords ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 pr-12" style={{ '--tw-ring-color': brandPrimaryColor }} />
+                <button type="button" onClick={() => setShowPasswords(!showPasswords)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPasswords ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
@@ -831,36 +863,15 @@ export default function AgencySettingsPage() {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-                <input
-                  type={showPasswords ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                  style={{ '--tw-ring-color': brandPrimaryColor }}
-                />
+                <input type={showPasswords ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
-                <input
-                  type={showPasswords ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                  style={{ '--tw-ring-color': brandPrimaryColor }}
-                />
+                <input type={showPasswords ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
               </div>
             </div>
-            <button
-              type="submit"
-              disabled={isChangingPassword || !currentPassword || !newPassword}
-              className="px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: brandPrimaryColor }}
-            >
-              {isChangingPassword ? (
-                <span className="flex items-center gap-2"><FaSpinner className="animate-spin" /> Changing...</span>
-              ) : (
-                'Change Password'
-              )}
+            <button type="submit" disabled={isChangingPassword || !currentPassword || !newPassword} className="px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: brandPrimaryColor }}>
+              {isChangingPassword ? <span className="flex items-center gap-2"><FaSpinner className="animate-spin" /> Changing...</span> : 'Change Password'}
             </button>
           </form>
         </div>

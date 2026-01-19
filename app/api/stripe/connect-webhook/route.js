@@ -146,8 +146,8 @@ async function handleConnectedCheckout(session, connectedAccountId, supabase) {
     throw updateError
   }
 
-  // Provision the subdomain
-  await provisionSubdomain(company_id, subdomain)
+  // Provision the subdomain - NOW WITH AGENCY ID FOR CUSTOM DOMAIN SUPPORT
+  await provisionSubdomain(company_id, subdomain, agency_id)
 
   console.log('═══════════════════════════════════════')
   console.log('✅ AGENCY CUSTOMER SETUP COMPLETE')
@@ -157,7 +157,7 @@ async function handleConnectedCheckout(session, connectedAccountId, supabase) {
   console.log(`Plan: ${plan}`)
   console.log(`Agency ID: ${agency_id}`)
   console.log(`Connected Account: ${connectedAccountId}`)
-  console.log(`Subdomain: ${subdomain}.gorocketsolutions.com`)
+  console.log(`Subdomain: ${subdomain}`)
   console.log(`Temp Password: ${tempPassword}`)
   console.log('═══════════════════════════════════════')
 
@@ -245,7 +245,7 @@ async function handleAccountUpdate(account, supabase) {
   }
 }
 
-async function provisionSubdomain(companyId, subdomain) {
+async function provisionSubdomain(companyId, subdomain, agencyId) {
   const PROVISION_API_URL = process.env.PROVISION_API_URL || 'https://junklinellc.com/api/provision-subdomain'
   const PROVISION_API_SECRET = process.env.PROVISION_API_SECRET
 
@@ -260,7 +260,11 @@ async function provisionSubdomain(companyId, subdomain) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${PROVISION_API_SECRET}`
       },
-      body: JSON.stringify({ companyId, subdomain })
+      body: JSON.stringify({ 
+        companyId, 
+        subdomain,
+        agencyId  // Pass agency ID for custom domain lookup
+      })
     })
 
     const data = await response.json()
