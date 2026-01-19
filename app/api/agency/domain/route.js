@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import dns from 'dns'
-import { promisify } from 'util'
-
-const resolveCname = promisify(dns.resolveCname)
-const resolve4 = promisify(dns.resolve4)
 
 function getSupabase() {
   return createClient(
@@ -35,14 +30,11 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Agency not found' }, { status: 404 })
     }
     
-    // If domain is set but not verified, check DNS
+    // If domain is set but not verified, just return the status
     if (agency.marketing_domain && !agency.domain_verified) {
-      const dnsStatus = await checkDnsRecords(agency.marketing_domain)
-      
       return NextResponse.json({
         custom_domain: agency.marketing_domain,
-        domain_verified: false,
-        dns_status: dnsStatus
+        domain_verified: false
       })
     }
     
@@ -97,30 +89,13 @@ export async function POST(request) {
         return NextResponse.json({ error: 'No domain configured' }, { status: 400 })
       }
       
-      // Check DNS records
-      const dnsStatus = await checkDnsRecords(agency.marketing_domain)
-      
-      if (!dnsStatus.aRecordValid && !dnsStatus.cnameRootValid) {
-        return NextResponse.json({ 
-          error: 'Root domain DNS not configured. Add an A record pointing to 76.76.21.21',
-          dns_status: dnsStatus
-        }, { status: 400 })
-      }
-      
-      if (!dnsStatus.wildcardValid) {
-        return NextResponse.json({ 
-          error: 'Wildcard CNAME not configured. Add a CNAME record for * pointing to cname.vercel-dns.com',
-          dns_status: dnsStatus
-        }, { status: 400 })
-      }
-      
       // Add root domain to rocket-solutions (marketing site)
       const rocketResult = await addDomainToVercel(
         agency.marketing_domain, 
         process.env.VERCEL_PROJECT_ID  // rocket-solutions project
       )
       
-      if (!rocketResult.success) {
+      if (!rocketResult.success && !rocketResult.existing) {
         return NextResponse.json({ 
           error: 'Failed to add domain to marketing site',
           details: rocketResult.error
@@ -133,7 +108,7 @@ export async function POST(request) {
         process.env.VERCEL_JUNKLINE_PROJECT_ID
       )
       
-      if (!junklineResult.success) {
+      if (!junklineResult.success && !junklineResult.existing) {
         return NextResponse.json({ 
           error: 'Failed to add wildcard domain for customer sites',
           details: junklineResult.error
@@ -203,60 +178,16 @@ export async function POST(request) {
     
     if (updateError) throw updateError
     
-    // Check if DNS is already configured
-    const dnsStatus = await checkDnsRecords(cleanDomain)
-    
     return NextResponse.json({ 
       success: true,
       custom_domain: cleanDomain,
-      domain_verified: false,
-      dns_status: dnsStatus
+      domain_verified: false
     })
     
   } catch (error) {
     console.error('Domain save error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
-}
-
-// Check both A record (root) and CNAME (wildcard)
-async function checkDnsRecords(domain) {
-  const status = {
-    aRecordValid: false,
-    cnameRootValid: false,
-    wildcardValid: false
-  }
-  
-  // Check A record for root domain
-  try {
-    const aRecords = await resolve4(domain)
-    status.aRecordValid = aRecords.includes('76.76.21.21')
-  } catch (error) {
-    // No A record found
-  }
-  
-  // Check if root has CNAME (alternative to A record)
-  try {
-    const cnameRecords = await resolveCname(domain)
-    status.cnameRootValid = cnameRecords.some(r => 
-      r.includes('vercel-dns.com') || r.includes('vercel.com')
-    )
-  } catch (error) {
-    // No CNAME for root (this is normal, most use A record)
-  }
-  
-  // Check wildcard CNAME
-  try {
-    const testSubdomain = `dns-verify-${Date.now()}.${domain}`
-    const wildcardRecords = await resolveCname(testSubdomain)
-    status.wildcardValid = wildcardRecords.some(r => 
-      r.includes('vercel-dns.com') || r.includes('vercel.com')
-    )
-  } catch (error) {
-    // No wildcard CNAME found
-  }
-  
-  return status
 }
 
 // Add domain to a Vercel project
