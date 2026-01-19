@@ -29,7 +29,8 @@ export default function AgencySettingsPage() {
   const [isConnectingStripe, setIsConnectingStripe] = useState(false)
   
   // Domain state
-  const [customDomain, setCustomDomain] = useState('')
+  const [customDomain, setCustomDomain] = useState('')  // Saved domain from server
+  const [domainInput, setDomainInput] = useState('')    // Input field value
   const [domainVerified, setDomainVerified] = useState(false)
   const [dnsConfigured, setDnsConfigured] = useState(false)
   const [isLoadingDomain, setIsLoadingDomain] = useState(true)
@@ -146,7 +147,7 @@ export default function AgencySettingsPage() {
 
   // Domain handlers
   const handleSaveDomain = async () => {
-    if (!customDomain.trim()) {
+    if (!domainInput.trim()) {
       toast.error('Please enter a domain')
       return
     }
@@ -158,7 +159,7 @@ export default function AgencySettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           agencyId: agency.id, 
-          domain: customDomain 
+          domain: domainInput 
         })
       })
       
@@ -169,6 +170,7 @@ export default function AgencySettingsPage() {
       }
       
       setCustomDomain(data.custom_domain)
+      setDomainInput('')  // Clear input after successful save
       setDomainVerified(data.domain_verified)
       setDnsConfigured(data.dns_configured)
       toast.success('Domain saved! Configure your DNS to continue.')
@@ -654,8 +656,8 @@ export default function AgencySettingsPage() {
               </div>
               
               <div className="flex items-center gap-3">
-                <input type="text" value={customDomain} onChange={(e) => setCustomDomain(e.target.value)} placeholder="yourdomain.com" className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
-                <button onClick={handleSaveDomain} disabled={isSavingDomain || !customDomain.trim()} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: brandPrimaryColor }}>
+                <input type="text" value={domainInput} onChange={(e) => setDomainInput(e.target.value)} placeholder="yourdomain.com" className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
+                <button onClick={handleSaveDomain} disabled={isSavingDomain || !domainInput.trim()} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: brandPrimaryColor }}>
                   {isSavingDomain ? <><FaSpinner className="animate-spin" /> Saving...</> : <>Add Domain</>}
                 </button>
               </div>
