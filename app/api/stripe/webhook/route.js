@@ -21,9 +21,10 @@ function getSupabase() {
 }
 
 // Get plan from subscription
-async function getPlanFromSubscription(subscriptionId) {
+async function getPlanFromSubscription(subscriptionId, stripeAccountId = null) {
   try {
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    const options = stripeAccountId ? { stripeAccount: stripeAccountId } : {}
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, options)
     const priceId = subscription.items.data[0]?.price?.id
     return PRICE_TO_PLAN[priceId] || 'starter'
   } catch (error) {
@@ -60,6 +61,19 @@ export async function POST(request) {
   // Handle the checkout.session.completed event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
+    const { company_id, agencyId } = session.metadata || {}
+
+    // Skip agency signups - these are handled by tapstack webhook
+    if (!company_id && agencyId) {
+      console.log('Skipping agency signup - handled by tapstack webhook')
+      return NextResponse.json({ received: true, skipped: 'agency_signup' })
+    }
+
+    // Skip if no company_id (shouldn't happen for customer signups)
+    if (!company_id) {
+      console.log('Skipping - no company_id in metadata')
+      return NextResponse.json({ received: true, skipped: 'no_company_id' })
+    }
 
     try {
       await handleCheckoutComplete(session)
@@ -102,7 +116,8 @@ async function handleCheckoutComplete(session) {
     logo_background_color,
     logo_url,
     service_radius,
-    plan
+    plan,
+    agency_id
   } = session.metadata || {}
 
   if (!company_id) {
@@ -160,6 +175,7 @@ async function handleCheckoutComplete(session) {
       temp_password: tempPassword,
       is_active: true,
       status: 'active',
+      agency_id: agency_id || null,
       updated_at: new Date().toISOString()
     })
     .eq('id', company_id)
@@ -188,6 +204,7 @@ async function handleCheckoutComplete(session) {
   console.log(`Subdomain: ${subdomain}.gorocketsolutions.com`)
   console.log(`Temp Password: ${tempPassword}`)
   console.log(`Dashboard: https://${subdomain}.gorocketsolutions.com/dashboard`)
+  if (agency_id) console.log(`Agency ID: ${agency_id}`)
   console.log('═══════════════════════════════════════')
 
   return { success: true, subdomain, company }
@@ -228,14 +245,6 @@ async function handleSubscriptionUpdate(subscription) {
 
   if (data) {
     console.log(`✅ Updated ${data.company_name} (${data.email}) to ${newPlan} plan`)
-    
-    // TODO: Send email notification about plan change
-    // await sendPlanChangeEmail({
-    //   to: data.email,
-    //   companyName: data.company_name,
-    //   newPlan,
-    //   status: subscription.status
-    // })
   }
 }
 
@@ -267,12 +276,6 @@ async function handleSubscriptionCancelled(subscription) {
 
   if (data) {
     console.log(`✅ Deactivated ${data.company_name} (${data.email})`)
-    
-    // TODO: Send cancellation email
-    // await sendCancellationEmail({
-    //   to: data.email,
-    //   companyName: data.company_name
-    // })
   }
 }
 
