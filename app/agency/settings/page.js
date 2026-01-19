@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   FaSave, FaSpinner, FaCamera, FaPalette, FaBuilding, 
   FaEnvelope, FaPhone, FaDollarSign, FaLock, FaEye, FaEyeSlash,
-  FaChevronDown, FaChevronUp
+  FaChevronDown, FaChevronUp, FaStripe, FaCheckCircle, FaExclamationCircle,
+  FaExternalLinkAlt
 } from 'react-icons/fa'
 import { Toaster, toast } from 'react-hot-toast'
 import { useAgencyAuth } from '../../../lib/AgencyAuthContext'
@@ -15,11 +16,17 @@ export default function AgencySettingsPage() {
   const { agency, isLoading: authLoading, refreshAgency } = useAgencyAuth()
   const { agency: brandingAgency } = useAgency()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const fileInputRef = useRef(null)
   
   const [isInitialized, setIsInitialized] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showAdvancedColors, setShowAdvancedColors] = useState(false)
+  
+  // Stripe Connect state
+  const [stripeStatus, setStripeStatus] = useState(null)
+  const [isLoadingStripe, setIsLoadingStripe] = useState(true)
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false)
   
   // Form state
   const [logoPreview, setLogoPreview] = useState(null)
@@ -46,6 +53,66 @@ export default function AgencySettingsPage() {
 
   // Use branding agency for primary color styling
   const brandPrimaryColor = brandingAgency?.primary_color || '#fa8820'
+
+  // Check for Stripe Connect return status
+  useEffect(() => {
+    const stripeConnect = searchParams.get('stripe_connect')
+    if (stripeConnect === 'success') {
+      toast.success('Stripe account connected successfully!')
+      // Clean up URL
+      router.replace('/agency/settings', { scroll: false })
+    } else if (stripeConnect === 'pending') {
+      toast('Stripe setup incomplete. Please finish connecting your account.', { icon: '⚠️' })
+      router.replace('/agency/settings', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  // Fetch Stripe Connect status
+  useEffect(() => {
+    if (agency?.id) {
+      fetchStripeStatus()
+    }
+  }, [agency?.id])
+
+  const fetchStripeStatus = async () => {
+    setIsLoadingStripe(true)
+    try {
+      const response = await fetch(`/api/agency/stripe-connect?agency_id=${agency.id}`)
+      const data = await response.json()
+      setStripeStatus(data)
+    } catch (err) {
+      console.error('Failed to fetch Stripe status:', err)
+    } finally {
+      setIsLoadingStripe(false)
+    }
+  }
+
+  const handleConnectStripe = async () => {
+    setIsConnectingStripe(true)
+    try {
+      const response = await fetch('/api/agency/stripe-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agencyId: agency.id })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create Stripe Connect link')
+      }
+      
+      // Redirect to Stripe onboarding
+      window.location.href = data.url
+    } catch (err) {
+      toast.error(err.message)
+      setIsConnectingStripe(false)
+    }
+  }
+
+  const openStripeDashboard = () => {
+    window.open('https://dashboard.stripe.com', '_blank')
+  }
 
   // Initialize form with agency data
   useEffect(() => {
@@ -320,6 +387,107 @@ export default function AgencySettingsPage() {
       </div>
 
       <div className="space-y-6">
+        
+        {/* Stripe Connect Section */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: '#635bff20' }}
+            >
+              <FaStripe className="text-[#635bff] text-xl" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Payment Processing</h2>
+              <p className="text-sm text-gray-500">Connect your Stripe account to accept payments from your customers</p>
+            </div>
+          </div>
+          
+          {isLoadingStripe ? (
+            <div className="flex items-center gap-3 py-4">
+              <FaSpinner className="animate-spin text-gray-400" />
+              <span className="text-gray-500">Checking Stripe status...</span>
+            </div>
+          ) : stripeStatus?.onboarding_complete ? (
+            // Connected and complete
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                <FaCheckCircle className="text-green-500 text-xl flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-green-800">Stripe Connected</p>
+                  <p className="text-sm text-green-600">Your account is ready to accept payments</p>
+                </div>
+              </div>
+              <button
+                onClick={openStripeDashboard}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <FaExternalLinkAlt className="text-xs" />
+                Open Stripe Dashboard
+              </button>
+            </div>
+          ) : stripeStatus?.connected ? (
+            // Connected but incomplete
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <FaExclamationCircle className="text-yellow-500 text-xl flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-yellow-800">Setup Incomplete</p>
+                  <p className="text-sm text-yellow-600">Please complete your Stripe account setup to accept payments</p>
+                </div>
+              </div>
+              <button
+                onClick={handleConnectStripe}
+                disabled={isConnectingStripe}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: '#635bff' }}
+              >
+                {isConnectingStripe ? (
+                  <><FaSpinner className="animate-spin" /> Connecting...</>
+                ) : (
+                  <>Continue Setup</>
+                )}
+              </button>
+            </div>
+          ) : (
+            // Not connected
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-gray-600 text-sm">
+                  Connect your Stripe account to start accepting payments from your customers. 
+                  You&apos;ll receive payments directly to your bank account.
+                </p>
+                <ul className="mt-3 space-y-2 text-sm text-gray-500">
+                  <li className="flex items-center gap-2">
+                    <FaCheckCircle className="text-gray-400" />
+                    Accept credit cards and other payment methods
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <FaCheckCircle className="text-gray-400" />
+                    Automatic monthly billing for your customers
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <FaCheckCircle className="text-gray-400" />
+                    Payments go directly to your bank account
+                  </li>
+                </ul>
+              </div>
+              <button
+                onClick={handleConnectStripe}
+                disabled={isConnectingStripe}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: '#635bff' }}
+              >
+                {isConnectingStripe ? (
+                  <><FaSpinner className="animate-spin" /> Connecting...</>
+                ) : (
+                  <><FaStripe className="text-lg" /> Connect Stripe Account</>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Agency Logo */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
