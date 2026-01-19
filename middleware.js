@@ -7,6 +7,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+// Tapstack subdomain pattern: {slug}.tapstack.dev
+const TAPSTACK_SUBDOMAIN_REGEX = /^([^.]+)\.tapstack\.dev$/
+
 export async function middleware(request) {
   const { pathname } = request.nextUrl
   const hostname = request.headers.get('host')?.split(':')[0] // Remove port if present
@@ -20,17 +23,41 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
-  // Lookup agency by marketing_domain
-  const { data: agency, error } = await supabase
-    .from('agencies')
-    .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, brand_palette, tagline, support_email, support_phone, price_starter, price_pro, price_growth')
-    .eq('marketing_domain', hostname)
-    .eq('status', 'active')
-    .single()
+  let agency = null
 
-  // If no agency found for this domain, check if it's localhost or a preview URL
-  if (error || !agency) {
-    // For local development and Vercel previews, default to rocket-solutions
+  // 1. Check for Tapstack subdomain pattern: {slug}.tapstack.dev
+  const tapstackMatch = hostname?.match(TAPSTACK_SUBDOMAIN_REGEX)
+  if (tapstackMatch && tapstackMatch[1] !== 'www') {
+    const agencySlug = tapstackMatch[1]
+    
+    const { data, error } = await supabase
+      .from('agencies')
+      .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, brand_palette, tagline, support_email, support_phone, price_starter, price_pro, price_growth, marketing_domain')
+      .eq('slug', agencySlug)
+      .eq('status', 'active')
+      .single()
+    
+    if (!error && data) {
+      agency = data
+    }
+  }
+
+  // 2. If no agency yet, lookup by marketing_domain (custom domains)
+  if (!agency && hostname) {
+    const { data, error } = await supabase
+      .from('agencies')
+      .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, brand_palette, tagline, support_email, support_phone, price_starter, price_pro, price_growth, marketing_domain')
+      .eq('marketing_domain', hostname)
+      .eq('status', 'active')
+      .single()
+
+    if (!error && data) {
+      agency = data
+    }
+  }
+
+  // 3. For local development and Vercel previews, default to rocket-solutions
+  if (!agency) {
     const isLocalOrPreview = 
       hostname === 'localhost' || 
       hostname?.includes('vercel.app') ||
@@ -39,23 +66,18 @@ export async function middleware(request) {
     if (isLocalOrPreview) {
       const { data: defaultAgency } = await supabase
         .from('agencies')
-        .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, brand_palette, tagline, support_email, support_phone, price_starter, price_pro, price_growth')
+        .select('id, slug, name, logo_url, logo_background_color, primary_color, secondary_color, tertiary_color, brand_palette, tagline, support_email, support_phone, price_starter, price_pro, price_growth, marketing_domain')
         .eq('slug', 'rocket-solutions')
         .single()
 
       if (defaultAgency) {
-        const response = NextResponse.next()
-        response.cookies.set('agency', JSON.stringify(defaultAgency), {
-          httpOnly: false, // Allow client-side access
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 // 24 hours
-        })
-        return response
+        agency = defaultAgency
       }
     }
-    
-    // No agency found - could show a 404 or redirect
+  }
+
+  // No agency found - continue without setting cookie
+  if (!agency) {
     return NextResponse.next()
   }
 
