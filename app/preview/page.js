@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { FaClock, FaCheck, FaLock, FaEye, FaSpinner, FaCheckCircle } from 'react-icons/fa'
 import TourOverlay from '../components/TourOverlay'
 import Image from 'next/image'
+import { useAgency } from '../../lib/AgencyContext'
 
 // Loading steps with timing
 const LOADING_STEPS = [
@@ -20,6 +21,7 @@ const LOADING_STEPS = [
 export default function PreviewPage() {
   const router = useRouter()
   const iframeRef = useRef(null)
+  const { agency } = useAgency()
   
   const [isLoading, setIsLoading] = useState(true)
   const [currentLoadingStep, setCurrentLoadingStep] = useState(0)
@@ -47,6 +49,11 @@ export default function PreviewPage() {
   const apiCallComplete = useRef(false)
 
   const JUNKLINE_URL = 'https://service-business-platform.vercel.app'
+
+  // Dynamic pricing from agency (stored in cents, convert to dollars)
+  const starterPrice = agency?.price_starter ? Math.round(agency.price_starter / 100) : 49
+  const proPrice = agency?.price_pro ? Math.round(agency.price_pro / 100) : 99
+  const growthPrice = agency?.price_growth ? Math.round(agency.price_growth / 100) : 199
 
   // Animated loading steps
   useEffect(() => {
@@ -196,6 +203,7 @@ export default function PreviewPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan,
+          agencyId: agency?.id,
           siteData: {
             ...previewData,
             siteId,
@@ -462,7 +470,7 @@ export default function PreviewPage() {
                           <FaSpinner className="animate-spin text-xl text-gray-400" />
                         ) : (
                           <>
-                            <span className="text-2xl font-bold text-gray-800">$149</span>
+                            <span className="text-2xl font-bold text-gray-800">${growthPrice}</span>
                             <span className="text-gray-500 text-sm">/mo</span>
                           </>
                         )}
@@ -492,7 +500,7 @@ export default function PreviewPage() {
                         <FaSpinner className="animate-spin text-xl text-gray-400" />
                       ) : (
                         <>
-                          <span className="text-2xl font-bold text-gray-800">$99</span>
+                          <span className="text-2xl font-bold text-gray-800">${proPrice}</span>
                           <span className="text-gray-500 text-sm">/mo</span>
                         </>
                       )}
@@ -517,7 +525,7 @@ export default function PreviewPage() {
                         <FaSpinner className="animate-spin text-xl text-gray-400" />
                       ) : (
                         <>
-                          <span className="text-2xl font-bold text-gray-800">$49</span>
+                          <span className="text-2xl font-bold text-gray-800">${starterPrice}</span>
                           <span className="text-gray-500 text-sm">/mo</span>
                         </>
                       )}
