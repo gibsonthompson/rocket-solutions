@@ -40,7 +40,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing company ID' }, { status: 400 })
     }
 
+    // Create customer first (required for Stripe Accounts V2 in test mode)
+    const customer = await stripe.customers.create({
+      email: siteData.email,
+      name: siteData.businessName,
+      metadata: {
+        company_id: companyId,
+        company_name: siteData.businessName,
+      }
+    })
+
     const session = await stripe.checkout.sessions.create({
+      customer: customer.id,  // Use customer ID instead of customer_email
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
@@ -49,7 +60,6 @@ export async function POST(request) {
           quantity: 1,
         },
       ],
-      customer_email: siteData.email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&company_id=${companyId}`,
       cancel_url: `${baseUrl}/preview?cancelled=true`,
       metadata: {
