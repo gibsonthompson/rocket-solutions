@@ -134,8 +134,10 @@ export default function AgencyLoginPage() {
     )
   }
 
-  const primaryColor = agency?.primary_color || '#fa8820'
-  const agencyName = agency?.name || 'Agency Portal'
+  // Use agency branding or Tapstack fallbacks
+  const primaryColor = agency?.primary_color || '#c1ff72'
+  const agencyName = agency?.name || 'Tapstack'
+  const supportEmail = agency?.support_email || 'support@tapstack.dev'
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-4">
@@ -150,12 +152,12 @@ export default function AgencyLoginPage() {
                 className="h-16 w-auto object-contain"
               />
             ) : (
-              <div 
-                className="w-16 h-16 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <FaRocket className="text-3xl text-white" />
-              </div>
+              <img 
+                src="https://szdrpdjyordvqtkuuazh.supabase.co/storage/v1/object/public/agency-logos/TapStacklogo.png" 
+                alt="Tapstack"
+                className="h-16 w-auto object-contain p-2 rounded-xl"
+                style={{ backgroundColor: '#171515' }}
+              />
             )}
             <span className="text-2xl font-bold">{agencyName}</span>
           </Link>
@@ -219,9 +221,6 @@ export default function AgencyLoginPage() {
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  First time? Your default password is your agency slug.
-                </p>
               </div>
 
               <button
@@ -334,7 +333,7 @@ export default function AgencyLoginPage() {
 
         {/* Help text */}
         <p className="text-center text-white/50 text-sm mt-6">
-          Need an agency account? Contact us at {agency?.support_email || 'hello@gorocketsolutions.com'}
+          Need help? Contact {supportEmail}
         </p>
       </div>
     </div>
