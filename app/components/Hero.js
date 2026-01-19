@@ -15,12 +15,33 @@ function hexToRgb(hex) {
   } : { r: 250, g: 136, b: 32 }
 }
 
+// Check if color is too dark (luminance < threshold)
+function isColorTooDark(hex, threshold = 50) {
+  const rgb = hexToRgb(hex)
+  // Calculate relative luminance
+  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b)
+  return luminance < threshold
+}
+
+// Create a lighter shade of a color for gradient
+function lightenColor(hex, percent = 40) {
+  const rgb = hexToRgb(hex)
+  const r = Math.min(255, rgb.r + Math.floor((255 - rgb.r) * percent / 100))
+  const g = Math.min(255, rgb.g + Math.floor((255 - rgb.g) * percent / 100))
+  const b = Math.min(255, rgb.b + Math.floor((255 - rgb.b) * percent / 100))
+  return `rgb(${r}, ${g}, ${b})`
+}
+
 export default function Hero() {
   const { agency } = useAgency()
   
   // Use agency colors with fallbacks
   const primaryColor = agency?.primary_color || '#fa8820'
-  const secondaryColor = agency?.secondary_color || '#ff6b6b'
+  // If no secondary color OR secondary is too dark, create a lighter version of primary
+  const rawSecondary = agency?.secondary_color
+  const secondaryColor = (!rawSecondary || isColorTooDark(rawSecondary)) 
+    ? lightenColor(primaryColor, 40) 
+    : rawSecondary
   
   // Create a darker shade for the gradient background
   const rgb = hexToRgb(primaryColor)
@@ -80,7 +101,7 @@ export default function Hero() {
               <span 
                 className="bg-clip-text text-transparent"
                 style={{ 
-                  backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+                  backgroundImage: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`
                 }}
               >
                 Competitors With Better Websites
@@ -101,7 +122,7 @@ export default function Hero() {
                   transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
                   className="flex items-center text-white/90"
                 >
-                  <FaCheck className="text-green-400 mr-2 flex-shrink-0" />
+                  <FaCheck className="mr-2 flex-shrink-0" style={{ color: primaryColor }} />
                   <span>{benefit}</span>
                 </motion.div>
               ))}

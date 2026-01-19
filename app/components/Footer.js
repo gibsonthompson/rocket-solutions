@@ -3,11 +3,26 @@ import Link from 'next/link'
 import { FaInstagram, FaFacebook, FaYoutube } from 'react-icons/fa'
 import { useAgency } from '../../lib/AgencyContext'
 
+// Convert hex to RGB values
+function hexToRgb(hex) {
+  if (!hex) return { r: 250, g: 136, b: 32 }
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 250, g: 136, b: 32 }
+}
+
 export default function Footer() {
   const currentYear = new Date().getFullYear()
   const { agency } = useAgency()
 
   const primaryColor = agency?.primary_color || '#fa8820'
+  
+  // Create dark background based on primary color
+  const rgb = hexToRgb(primaryColor)
+  const darkBg = `rgb(${Math.floor(rgb.r * 0.08)}, ${Math.floor(rgb.g * 0.08)}, ${Math.floor(rgb.b * 0.12)})`
 
   const footerLinks = {
     product: [
@@ -35,7 +50,10 @@ export default function Footer() {
   ]
 
   return (
-    <footer className="bg-slate-900 text-white">
+    <footer 
+      className="text-white"
+      style={{ backgroundColor: darkBg }}
+    >
       <div className="container-custom py-16">
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
           {/* Brand */}
