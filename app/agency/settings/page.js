@@ -582,7 +582,7 @@ export default function AgencySettingsPage() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">Custom Domain</h2>
-              <p className="text-sm text-gray-500">Use your own domain for customer websites</p>
+              <p className="text-sm text-gray-500">Use your own domain for your marketing site and customer websites</p>
             </div>
           </div>
           
@@ -597,7 +597,8 @@ export default function AgencySettingsPage() {
                 <FaCheckCircle className="text-green-500 text-xl flex-shrink-0" />
                 <div className="flex-1">
                   <p className="font-medium text-green-800">Domain Active</p>
-                  <p className="text-sm text-green-600">Customer sites will use <strong>*.{customDomain}</strong></p>
+                  <p className="text-sm text-green-600">Marketing site: <strong>{customDomain}</strong></p>
+                  <p className="text-sm text-green-600">Customer sites: <strong>*.{customDomain}</strong></p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -611,33 +612,64 @@ export default function AgencySettingsPage() {
                 <FaExclamationCircle className="text-yellow-500 text-xl flex-shrink-0" />
                 <div>
                   <p className="font-medium text-yellow-800">DNS Configuration Required</p>
-                  <p className="text-sm text-yellow-600">Add the DNS record below, then click Verify</p>
+                  <p className="text-sm text-yellow-600">Add both DNS records below, then click Verify</p>
                 </div>
               </div>
               
               <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-sm font-medium text-gray-700 mb-3">Add this DNS record in your domain provider (GoDaddy, Namecheap, Cloudflare, etc.):</p>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Type</p>
-                    <code className="px-2 py-1 bg-white rounded border border-gray-200">CNAME</code>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Name / Host</p>
-                    <div className="flex items-center gap-2">
-                      <code className="px-2 py-1 bg-white rounded border border-gray-200">*</code>
-                      <button onClick={() => copyToClipboard('*')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                <p className="text-sm font-medium text-gray-700 mb-3">Add these DNS records in your domain provider (GoDaddy, Namecheap, Cloudflare, etc.):</p>
+                
+                {/* Record 1: A Record for root domain */}
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  <p className="text-xs font-medium text-gray-500 mb-2">Record 1: For your marketing site ({customDomain})</p>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Type</p>
+                      <code className="px-2 py-1 bg-white rounded border border-gray-200">A</code>
                     </div>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Value / Target</p>
-                    <div className="flex items-center gap-2">
-                      <code className="px-2 py-1 bg-white rounded border border-gray-200 text-xs">cname.vercel-dns.com</code>
-                      <button onClick={() => copyToClipboard('cname.vercel-dns.com')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                    <div>
+                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Name / Host</p>
+                      <div className="flex items-center gap-2">
+                        <code className="px-2 py-1 bg-white rounded border border-gray-200">@</code>
+                        <button onClick={() => copyToClipboard('@')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Value / Target</p>
+                      <div className="flex items-center gap-2">
+                        <code className="px-2 py-1 bg-white rounded border border-gray-200">76.76.21.21</code>
+                        <button onClick={() => copyToClipboard('76.76.21.21')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-3">DNS changes can take up to 48 hours to propagate, but usually complete within minutes.</p>
+                
+                {/* Record 2: CNAME for customer subdomains */}
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-2">Record 2: For customer sites (*.{customDomain})</p>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Type</p>
+                      <code className="px-2 py-1 bg-white rounded border border-gray-200">CNAME</code>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Name / Host</p>
+                      <div className="flex items-center gap-2">
+                        <code className="px-2 py-1 bg-white rounded border border-gray-200">*</code>
+                        <button onClick={() => copyToClipboard('*')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Value / Target</p>
+                      <div className="flex items-center gap-2">
+                        <code className="px-2 py-1 bg-white rounded border border-gray-200 text-xs">cname.vercel-dns.com</code>
+                        <button onClick={() => copyToClipboard('cname.vercel-dns.com')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-gray-400 mt-4">DNS changes can take up to 48 hours to propagate, but usually complete within minutes.</p>
               </div>
               
               <div className="flex items-center gap-3">
@@ -651,7 +683,7 @@ export default function AgencySettingsPage() {
           ) : (
             <div className="space-y-4">
               <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-gray-600 text-sm">Add a custom domain so your customers get websites like <strong>joes-plumbing.yourdomain.com</strong> instead of gorocketsolutions.com.</p>
+                <p className="text-gray-600 text-sm">Add a custom domain so your marketing site and customer websites use your own brand.</p>
                 <p className="text-gray-500 text-xs mt-2">You&apos;ll need access to your domain&apos;s DNS settings to complete setup.</p>
               </div>
               
