@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaClock, FaCheck, FaLock, FaEye, FaSpinner, FaCheckCircle } from 'react-icons/fa'
+import { FaClock, FaCheck, FaLock, FaEye, FaSpinner, FaCheckCircle, FaMobile, FaCalendarCheck, FaSearch, FaRedo, FaLightbulb } from 'react-icons/fa'
 import TourOverlay from '../components/TourOverlay'
 import Image from 'next/image'
 import { useAgency } from '../../lib/AgencyContext'
@@ -18,6 +18,293 @@ const LOADING_STEPS = [
   { id: 7, text: "Finalizing your site...", duration: 1500 },
 ]
 
+// Tips to show while loading
+const LOADING_TIPS = [
+  { icon: FaMobile, text: "Your site is automatically optimized for mobile devices" },
+  { icon: FaCalendarCheck, text: "Customers can book appointments 24/7 through your site" },
+  { icon: FaSearch, text: "We'll help you get found on Google with built-in SEO" },
+  { icon: FaLightbulb, text: "You can customize everything from your dashboard after launch" },
+  { icon: FaCheck, text: "Your site includes SSL security - the padlock customers trust" },
+  { icon: FaMobile, text: "85% of customers search for local services on their phones" },
+]
+
+// Skeleton preview component
+function SkeletonPreview({ primaryColor, businessName, logoPreview }) {
+  return (
+    <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200">
+      {/* Skeleton Nav */}
+      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          {logoPreview ? (
+            <img src={logoPreview} alt="" className="w-8 h-8 object-contain rounded" />
+          ) : (
+            <motion.div 
+              className="w-8 h-8 rounded"
+              style={{ backgroundColor: primaryColor }}
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+          )}
+          <motion.div 
+            className="h-3 w-24 bg-gray-300 rounded"
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: 0.1 }}
+          />
+        </div>
+        <div className="flex gap-2">
+          <motion.div 
+            className="h-2 w-12 bg-gray-200 rounded"
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+          />
+          <motion.div 
+            className="h-2 w-12 bg-gray-200 rounded"
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
+          />
+        </div>
+      </div>
+      
+      {/* Skeleton Hero */}
+      <div className="p-6 space-y-4">
+        <motion.div 
+          className="h-6 w-3/4 bg-gray-200 rounded"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+        />
+        <motion.div 
+          className="h-4 w-full bg-gray-100 rounded"
+          animate={{ opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
+        />
+        <motion.div 
+          className="h-4 w-2/3 bg-gray-100 rounded"
+          animate={{ opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+        />
+        <motion.div 
+          className="h-10 w-32 rounded-lg mt-4"
+          style={{ backgroundColor: primaryColor }}
+          animate={{ opacity: [0.6, 1, 0.6] }}
+          transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+        />
+      </div>
+      
+      {/* Skeleton Services */}
+      <div className="px-6 pb-6">
+        <div className="grid grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => (
+            <motion.div 
+              key={i}
+              className="bg-gray-50 rounded-lg p-3 space-y-2"
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 * i }}
+            >
+              <div 
+                className="w-8 h-8 rounded-lg mx-auto"
+                style={{ backgroundColor: `${primaryColor}20` }}
+              />
+              <div className="h-2 w-full bg-gray-200 rounded" />
+              <div className="h-2 w-2/3 bg-gray-100 rounded mx-auto" />
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Loading screen component
+function LoadingScreen({ 
+  agency, 
+  currentLoadingStep, 
+  completedSteps, 
+  primaryColor, 
+  businessName, 
+  logoPreview,
+  loadingStartTime 
+}) {
+  const [currentTipIndex, setCurrentTipIndex] = useState(0)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  
+  // Rotate tips every 4 seconds
+  useEffect(() => {
+    const tipInterval = setInterval(() => {
+      setCurrentTipIndex(prev => (prev + 1) % LOADING_TIPS.length)
+    }, 4000)
+    return () => clearInterval(tipInterval)
+  }, [])
+  
+  // Track elapsed time
+  useEffect(() => {
+    const timeInterval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - loadingStartTime) / 1000))
+    }, 1000)
+    return () => clearInterval(timeInterval)
+  }, [loadingStartTime])
+  
+  const currentTip = LOADING_TIPS[currentTipIndex]
+  const TipIcon = currentTip.icon
+  
+  const showRefreshHint = elapsedSeconds >= 15
+  const showRefreshButton = elapsedSeconds >= 25
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl">
+        <div className="grid lg:grid-cols-2 gap-8 items-center">
+          
+          {/* Left side - Progress */}
+          <div className="text-center lg:text-left">
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+              className="mb-6 flex justify-center lg:justify-start"
+            >
+              {agency?.logo_url ? (
+                <img 
+                  src={agency.logo_url} 
+                  alt={agency?.name || 'Agency'} 
+                  className="w-16 h-16 object-contain"
+                />
+              ) : (
+                <Image src="/logo.png" alt="Logo" width={64} height={64} />
+              )}
+            </motion.div>
+            
+            <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">
+              Building Your Website
+            </h1>
+            <p className="text-gray-400 mb-6">
+              {businessName ? `Creating ${businessName}'s online presence...` : 'This will only take a moment...'}
+            </p>
+            
+            {/* Progress steps */}
+            <div className="space-y-2.5 mb-6">
+              {LOADING_STEPS.map((step, index) => {
+                const isComplete = completedSteps.includes(index)
+                const isCurrent = currentLoadingStep === index && !isComplete
+                const isPending = index > currentLoadingStep
+                
+                return (
+                  <motion.div
+                    key={step.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: isPending ? 0.3 : 1, x: 0 }}
+                    transition={{ delay: index * 0.08, duration: 0.3 }}
+                    className={`flex items-center gap-3 ${isPending ? 'opacity-30' : ''}`}
+                  >
+                    <div className="w-5 h-5 flex items-center justify-center">
+                      {isComplete ? (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <FaCheckCircle className="text-green-500" />
+                        </motion.div>
+                      ) : isCurrent ? (
+                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <div className="w-3 h-3 rounded-full border-2 border-gray-600" />
+                      )}
+                    </div>
+                    
+                    <span className={`text-sm font-medium ${
+                      isComplete ? 'text-green-400' : isCurrent ? 'text-white' : 'text-gray-500'
+                    }`}>
+                      {step.text}
+                    </span>
+                  </motion.div>
+                )
+              })}
+            </div>
+            
+            {/* Progress bar */}
+            <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden mb-6">
+              <motion.div
+                className="h-full bg-gradient-to-r from-blue-500 to-green-500"
+                initial={{ width: "0%" }}
+                animate={{ width: `${((completedSteps.length) / LOADING_STEPS.length) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            
+            {/* Rotating tip */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentTipIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="bg-gray-800/50 rounded-xl p-4 border border-gray-700"
+              >
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${primaryColor}20` }}
+                  >
+                    <TipIcon className="text-lg" style={{ color: primaryColor }} />
+                  </div>
+                  <p className="text-gray-300 text-sm">{currentTip.text}</p>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+            
+            {/* Refresh hints */}
+            <AnimatePresence>
+              {showRefreshHint && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4"
+                >
+                  {showRefreshButton ? (
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                      <p className="text-yellow-400 text-sm mb-3">
+                        Taking longer than expected? Try refreshing the page.
+                      </p>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg font-medium text-sm hover:bg-yellow-400 transition-colors"
+                      >
+                        <FaRedo className="text-xs" />
+                        Refresh Page
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm flex items-center gap-2">
+                      <FaSpinner className="animate-spin" />
+                      Still working on your site...
+                    </p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          
+          {/* Right side - Skeleton preview */}
+          <div className="hidden lg:block">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+            >
+              <p className="text-gray-500 text-sm text-center mb-4">Preview loading...</p>
+              <SkeletonPreview 
+                primaryColor={primaryColor} 
+                businessName={businessName}
+                logoPreview={logoPreview}
+              />
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PreviewPage() {
   const router = useRouter()
   const iframeRef = useRef(null)
@@ -29,6 +316,7 @@ export default function PreviewPage() {
   const [error, setError] = useState(null)
   const [previewData, setPreviewData] = useState(null)
   const [companySlug, setCompanySlug] = useState(null)
+  const [loadingStartTime] = useState(Date.now())
   
   // Timer state
   const [timeLeft, setTimeLeft] = useState(180)
@@ -248,77 +536,22 @@ export default function PreviewPage() {
     setShowPaywall(true)
   }
 
+  // Get preview data for loading screen
+  const primaryColor = previewData?.primaryColor || agency?.primary_color || '#3B82F6'
+  const businessName = previewData?.businessName || ''
+  const logoPreview = previewData?.logoPreview
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto px-4">
-          <motion.div
-            animate={{ y: [0, -15, 0] }}
-            transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
-            className="mb-8"
-          >
-            {/* Dynamic agency logo, fallback to generic */}
-            {agency?.logo_url ? (
-              <img 
-                src={agency.logo_url} 
-                alt={agency?.name || 'Agency'} 
-                className="w-20 h-20 mx-auto object-contain"
-              />
-            ) : (
-              <Image src="/logo.png" alt="Logo" width={80} height={80} className="mx-auto" />
-            )}
-          </motion.div>
-          
-          <div className="space-y-3 text-left mb-6">
-            {LOADING_STEPS.map((step, index) => {
-              const isComplete = completedSteps.includes(index)
-              const isCurrent = currentLoadingStep === index && !isComplete
-              const isPending = index > currentLoadingStep
-              
-              return (
-                <motion.div
-                  key={step.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: isPending ? 0.3 : 1, x: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.3 }}
-                  className={`flex items-center gap-3 ${isPending ? 'opacity-30' : ''}`}
-                >
-                  <div className="w-6 h-6 flex items-center justify-center">
-                    {isComplete ? (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 300 }}
-                      >
-                        <FaCheckCircle className="text-green-500 text-lg" />
-                      </motion.div>
-                    ) : isCurrent ? (
-                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <div className="w-4 h-4 rounded-full border-2 border-gray-600" />
-                    )}
-                  </div>
-                  
-                  <span className={`text-sm font-medium ${
-                    isComplete ? 'text-green-400' : isCurrent ? 'text-white' : 'text-gray-500'
-                  }`}>
-                    {step.text}
-                  </span>
-                </motion.div>
-              )
-            })}
-          </div>
-          
-          <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-blue-500 to-green-500"
-              initial={{ width: "0%" }}
-              animate={{ width: `${((completedSteps.length) / LOADING_STEPS.length) * 100}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
-        </div>
-      </div>
+      <LoadingScreen
+        agency={agency}
+        currentLoadingStep={currentLoadingStep}
+        completedSteps={completedSteps}
+        primaryColor={primaryColor}
+        businessName={businessName}
+        logoPreview={logoPreview}
+        loadingStartTime={loadingStartTime}
+      />
     )
   }
 
@@ -340,12 +573,9 @@ export default function PreviewPage() {
     )
   }
 
-  const primaryColor = previewData?.primaryColor || '#3B82F6'
-  const businessName = previewData?.businessName || 'Your Business'
   const industry = previewData?.industry || 'Home Services'
   const city = previewData?.city || 'Your City'
   const state = previewData?.state || 'ST'
-  const logoPreview = previewData?.logoPreview
   const logoBackgroundColor = previewData?.logoBackgroundColor
 
   return (
