@@ -6,7 +6,7 @@ import {
   FaSave, FaSpinner, FaCamera, FaPalette, FaBuilding, 
   FaEnvelope, FaPhone, FaDollarSign, FaLock, FaEye, FaEyeSlash,
   FaChevronDown, FaChevronUp, FaStripe, FaCheckCircle, FaExclamationCircle,
-  FaExternalLinkAlt, FaGlobe, FaCopy, FaInfoCircle
+  FaExternalLinkAlt, FaGlobe, FaCopy
 } from 'react-icons/fa'
 import { Toaster, toast } from 'react-hot-toast'
 import { useAgencyAuth } from '../../../lib/AgencyAuthContext'
@@ -669,19 +669,7 @@ export default function AgencySettingsPage() {
                   </div>
                 </div>
                 
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex gap-2">
-                    <FaInfoCircle className="text-blue-500 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-blue-700">
-                      <p className="font-medium mb-1">Important Notes:</p>
-                      <ul className="list-disc list-inside space-y-1 text-blue-600">
-                        <li>This gives Vercel control of your domain&apos;s DNS</li>
-                        <li>If you have email (MX records), you&apos;ll need to re-add them in Vercel after verification</li>
-                        <li>Changes can take up to 48 hours to propagate (usually 5-30 minutes)</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+
               </div>
               
               <div className="flex items-center gap-3">

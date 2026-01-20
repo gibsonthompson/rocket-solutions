@@ -102,11 +102,22 @@ export default function AgencyDashboardPage() {
   }
 
   const getCustomerSiteUrl = (customer) => {
+    // If customer has their own custom domain, use that
     if (customer.custom_domain) {
       return `https://${customer.custom_domain}`
     }
-    const subdomainBase = agency?.customer_subdomain_base || 'gorocketsites.com'
-    return `https://${customer.subdomain}.${subdomainBase}`
+    
+    // If agency has a verified domain, use agency's domain for subdomains
+    if (agency?.marketing_domain && agency?.domain_verified && customer.subdomain) {
+      return `https://${customer.subdomain}.${agency.marketing_domain}`
+    }
+    
+    // Fallback to Vercel URL with slug parameter
+    if (customer.subdomain) {
+      return `https://service-business-platform.vercel.app?slug=${customer.subdomain}`
+    }
+    
+    return null
   }
 
   const getStatusColor = (status) => {
@@ -214,87 +225,107 @@ export default function AgencyDashboardPage() {
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Plan</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Joined</th>
-                    <th className="px-6 py-4"></th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Website</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {recentCustomers.map((customer) => (
-                    <tr key={customer.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-3">
-                          <div 
-                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                            style={{ backgroundColor: customer.primary_color || primaryColor }}
-                          >
-                            {customer.company_name?.charAt(0) || '?'}
+                  {recentCustomers.map((customer) => {
+                    const siteUrl = getCustomerSiteUrl(customer)
+                    return (
+                      <tr key={customer.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center space-x-3">
+                            <div 
+                              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                              style={{ backgroundColor: customer.primary_color || primaryColor }}
+                            >
+                              {customer.company_name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{customer.company_name}</p>
+                              <p className="text-sm text-gray-500">{customer.city}, {customer.state}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{customer.company_name}</p>
-                            <p className="text-sm text-gray-500">{customer.city}, {customer.state}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-gray-900">{customer.owner_name}</p>
-                        <p className="text-sm text-gray-500">{customer.email}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="capitalize font-medium text-gray-900">{customer.plan || 'starter'}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(customer.status)}`}>
-                          {customer.status || 'pending'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500">
-                        {formatDate(customer.created_at)}
-                      </td>
-                      <td className="px-6 py-4">
-                        {customer.subdomain && (
-                          <a
-                            href={getCustomerSiteUrl(customer)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                            title="Visit site"
-                          >
-                            <FaExternalLinkAlt />
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-gray-900">{customer.owner_name}</p>
+                          <p className="text-sm text-gray-500">{customer.email}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="capitalize font-medium text-gray-900">{customer.plan || 'starter'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(customer.status)}`}>
+                            {customer.status || 'pending'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-500">
+                          {formatDate(customer.created_at)}
+                        </td>
+                        <td className="px-6 py-4">
+                          {siteUrl ? (
+                            <a
+                              href={siteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80"
+                              style={{ color: primaryColor }}
+                            >
+                              View Site
+                              <FaExternalLinkAlt className="text-xs" />
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-sm">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-gray-100">
-              {recentCustomers.map((customer) => (
-                <div key={customer.id} className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center space-x-3">
-                      <div 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                        style={{ backgroundColor: customer.primary_color || primaryColor }}
-                      >
-                        {customer.company_name?.charAt(0) || '?'}
+              {recentCustomers.map((customer) => {
+                const siteUrl = getCustomerSiteUrl(customer)
+                return (
+                  <div key={customer.id} className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center space-x-3">
+                        <div 
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                          style={{ backgroundColor: customer.primary_color || primaryColor }}
+                        >
+                          {customer.company_name?.charAt(0) || '?'}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{customer.company_name}</p>
+                          <p className="text-sm text-gray-500">{customer.owner_name}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{customer.company_name}</p>
-                        <p className="text-sm text-gray-500">{customer.owner_name}</p>
-                      </div>
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(customer.status)}`}>
+                        {customer.status || 'pending'}
+                      </span>
                     </div>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(customer.status)}`}>
-                      {customer.status || 'pending'}
-                    </span>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500 capitalize">{customer.plan || 'starter'} plan • {formatDate(customer.created_at)}</span>
+                      {siteUrl && (
+                        <a
+                          href={siteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium"
+                          style={{ color: primaryColor }}
+                        >
+                          View Site
+                          <FaExternalLinkAlt className="text-xs" />
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center text-sm text-gray-500">
-                    <span className="capitalize">{customer.plan || 'starter'} plan</span>
-                    <span>{formatDate(customer.created_at)}</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </>
         ) : (
