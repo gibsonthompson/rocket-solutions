@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { FaCheckCircle, FaGlobe, FaRocket, FaSpinner, FaCopy, FaCheck, FaCog } from 'react-icons/fa'
 import Confetti from 'react-confetti'
-import { useAgency } from '../../lib/AgencyContext'
+import { useAgency } from '../../../lib/AgencyContext'
 
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams()
