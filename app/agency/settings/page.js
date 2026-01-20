@@ -637,8 +637,8 @@ export default function AgencySettingsPage() {
                     <div>
                       <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Value / Target</p>
                       <div className="flex items-center gap-2">
-                        <code className="px-2 py-1 bg-white rounded border border-gray-200">76.76.21.21</code>
-                        <button onClick={() => copyToClipboard('76.76.21.21')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                        <code className="px-2 py-1 bg-white rounded border border-gray-200">216.198.79.1</code>
+                        <button onClick={() => copyToClipboard('216.198.79.1')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
                       </div>
                     </div>
                   </div>
