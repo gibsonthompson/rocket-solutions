@@ -37,14 +37,6 @@ function isLightColor(color) {
   return luminance > 0.5
 }
 
-// Check if logo URL is a PNG (supports transparency)
-function isPngLogo(url) {
-  if (!url) return false
-  // Handle Supabase storage URLs which might have query params
-  const urlWithoutParams = url.split('?')[0]
-  return urlWithoutParams.toLowerCase().endsWith('.png')
-}
-
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -52,12 +44,11 @@ export default function Navigation() {
 
   const primaryColor = agency?.primary_color || '#fa8820'
   const logoBackgroundColor = agency?.logo_background_color || '#ffffff'
-  const logoIsPng = isPngLogo(agency?.logo_url)
   
   // Determine text colors based on background
   const bgIsLight = isLightColor(logoBackgroundColor)
-  const solidBgTextColor = bgIsLight ? '#1f2937' : '#ffffff'
-  const solidBgTextMuted = bgIsLight ? '#4b5563' : 'rgba(255,255,255,0.8)'
+  const textColor = bgIsLight ? '#1f2937' : '#ffffff'
+  const textMuted = bgIsLight ? '#4b5563' : 'rgba(255,255,255,0.8)'
 
   useEffect(() => {
     const handleScroll = () => {
@@ -67,43 +58,18 @@ export default function Navigation() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // DEBUG - remove after testing
-  useEffect(() => {
-    console.log('🔍 Nav Debug:', {
-      logoUrl: agency?.logo_url,
-      logoIsPng,
-      scrolled,
-      showSolidBg: logoIsPng ? scrolled : true,
-      logoBackgroundColor,
-      agencyLoaded: !!agency
-    })
-  }, [agency, logoIsPng, scrolled, logoBackgroundColor])
-
   const navLinks = [
     { name: 'Features', href: '#features' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ]
 
-  // Determine nav state:
-  // PNG logos: transparent initially, solid on scroll
-  // Non-PNG logos: always solid background
-  const showSolidBg = logoIsPng ? scrolled : true
-  const textColor = showSolidBg ? solidBgTextColor : '#ffffff'
-  const textMuted = showSolidBg ? solidBgTextMuted : 'rgba(255,255,255,0.9)'
-
-  // DEBUG border to visualize nav state - REMOVE AFTER TESTING
-  const debugBorder = showSolidBg ? '3px solid red' : '3px solid lime'
-
   return (
     <nav 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        showSolidBg ? 'shadow-lg' : ''
+        scrolled ? 'shadow-lg' : ''
       }`}
-      style={{
-        backgroundColor: showSolidBg ? logoBackgroundColor : 'transparent',
-        border: debugBorder // DEBUG - remove after testing
-      }}
+      style={{ backgroundColor: logoBackgroundColor }}
     >
       <div className="container-custom">
         <div className="flex justify-between items-center py-4">
@@ -124,7 +90,7 @@ export default function Navigation() {
               </div>
             )}
             <span 
-              className="text-xl font-bold transition-colors"
+              className="text-xl font-bold"
               style={{ color: textColor }}
             >
               {agency?.name || 'Rocket Solutions'}
@@ -139,12 +105,8 @@ export default function Navigation() {
                 href={link.href}
                 className="font-medium transition-colors"
                 style={{ color: textMuted }}
-                onMouseEnter={(e) => {
-                  e.target.style.color = showSolidBg ? primaryColor : '#ffffff'
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.color = textMuted
-                }}
+                onMouseEnter={(e) => e.target.style.color = primaryColor}
+                onMouseLeave={(e) => e.target.style.color = textMuted}
               >
                 {link.name}
               </a>
@@ -161,7 +123,7 @@ export default function Navigation() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 transition-colors"
+            className="md:hidden p-2"
             style={{ color: textColor }}
           >
             {isOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
