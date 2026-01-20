@@ -40,7 +40,9 @@ function isLightColor(color) {
 // Check if logo URL is a PNG (supports transparency)
 function isPngLogo(url) {
   if (!url) return false
-  return url.toLowerCase().includes('.png')
+  // Handle Supabase storage URLs which might have query params
+  const urlWithoutParams = url.split('?')[0]
+  return urlWithoutParams.toLowerCase().endsWith('.png')
 }
 
 export default function Navigation() {
@@ -65,6 +67,18 @@ export default function Navigation() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // DEBUG - remove after testing
+  useEffect(() => {
+    console.log('🔍 Nav Debug:', {
+      logoUrl: agency?.logo_url,
+      logoIsPng,
+      scrolled,
+      showSolidBg: logoIsPng ? scrolled : true,
+      logoBackgroundColor,
+      agencyLoaded: !!agency
+    })
+  }, [agency, logoIsPng, scrolled, logoBackgroundColor])
+
   const navLinks = [
     { name: 'Features', href: '#features' },
     { name: 'Pricing', href: '#pricing' },
@@ -78,12 +92,18 @@ export default function Navigation() {
   const textColor = showSolidBg ? solidBgTextColor : '#ffffff'
   const textMuted = showSolidBg ? solidBgTextMuted : 'rgba(255,255,255,0.9)'
 
+  // DEBUG border to visualize nav state - REMOVE AFTER TESTING
+  const debugBorder = showSolidBg ? '3px solid red' : '3px solid lime'
+
   return (
     <nav 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        showSolidBg ? 'shadow-lg' : 'bg-transparent'
+        showSolidBg ? 'shadow-lg' : ''
       }`}
-      style={showSolidBg ? { backgroundColor: logoBackgroundColor } : {}}
+      style={{
+        backgroundColor: showSolidBg ? logoBackgroundColor : 'transparent',
+        border: debugBorder // DEBUG - remove after testing
+      }}
     >
       <div className="container-custom">
         <div className="flex justify-between items-center py-4">
