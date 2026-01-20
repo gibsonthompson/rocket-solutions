@@ -662,8 +662,8 @@ export default function AgencySettingsPage() {
                     <div>
                       <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Value / Target</p>
                       <div className="flex items-center gap-2">
-                        <code className="px-2 py-1 bg-white rounded border border-gray-200 text-xs">cname.vercel-dns.com</code>
-                        <button onClick={() => copyToClipboard('cname.vercel-dns.com')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
+                        <code className="px-2 py-1 bg-white rounded border border-gray-200 text-xs">52f2ec7ccc7d7f3b.vercel-dns-017.com</code>
+                        <button onClick={() => copyToClipboard('52f2ec7ccc7d7f3b.vercel-dns-017.com')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
                       </div>
                     </div>
                   </div>
