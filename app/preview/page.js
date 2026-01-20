@@ -48,7 +48,12 @@ export default function PreviewPage() {
   const initializedRef = useRef(false)
   const apiCallComplete = useRef(false)
 
-  const JUNKLINE_URL = 'https://service-business-platform.vercel.app'
+  // Build preview URL based on agency's custom domain
+  const previewUrl = companySlug
+    ? (agency?.marketing_domain && agency?.domain_verified
+        ? `https://${companySlug}.${agency.marketing_domain}?slug=${companySlug}`
+        : `https://${companySlug}.gorocketsolutions.com?slug=${companySlug}`)
+    : null
 
   // Dynamic pricing from agency (stored in cents, convert to dollars)
   const starterPrice = agency?.price_starter ? Math.round(agency.price_starter / 100) : 49
@@ -367,7 +372,7 @@ export default function PreviewPage() {
 
       <iframe
         ref={iframeRef}
-        src={`${JUNKLINE_URL}?slug=${companySlug}`}
+        src={previewUrl}
         className="w-full h-full border-0 pt-12"
         title="Website Preview"
         style={{ position: 'relative', zIndex: 1 }}
