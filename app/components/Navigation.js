@@ -37,6 +37,12 @@ function isLightColor(color) {
   return luminance > 0.5
 }
 
+// Check if logo URL is a PNG (supports transparency)
+function isPngLogo(url) {
+  if (!url) return false
+  return url.toLowerCase().includes('.png')
+}
+
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -44,11 +50,12 @@ export default function Navigation() {
 
   const primaryColor = agency?.primary_color || '#fa8820'
   const logoBackgroundColor = agency?.logo_background_color || '#ffffff'
+  const logoIsPng = isPngLogo(agency?.logo_url)
   
   // Determine text colors based on background
-  const scrolledBgIsLight = isLightColor(logoBackgroundColor)
-  const scrolledTextColor = scrolledBgIsLight ? '#1f2937' : '#ffffff'
-  const scrolledTextMuted = scrolledBgIsLight ? '#4b5563' : 'rgba(255,255,255,0.8)'
+  const bgIsLight = isLightColor(logoBackgroundColor)
+  const solidBgTextColor = bgIsLight ? '#1f2937' : '#ffffff'
+  const solidBgTextMuted = bgIsLight ? '#4b5563' : 'rgba(255,255,255,0.8)'
 
   useEffect(() => {
     const handleScroll = () => {
@@ -64,19 +71,25 @@ export default function Navigation() {
     { name: 'FAQ', href: '#faq' },
   ]
 
+  // Determine nav state:
+  // PNG logos: transparent initially, solid on scroll
+  // Non-PNG logos: always solid background
+  const showSolidBg = logoIsPng ? scrolled : true
+  const textColor = showSolidBg ? solidBgTextColor : '#ffffff'
+  const textMuted = showSolidBg ? solidBgTextMuted : 'rgba(255,255,255,0.9)'
+
   return (
     <nav 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'shadow-lg' : 'bg-transparent'
+        showSolidBg ? 'shadow-lg' : 'bg-transparent'
       }`}
-      style={scrolled ? { backgroundColor: logoBackgroundColor } : {}}
+      style={showSolidBg ? { backgroundColor: logoBackgroundColor } : {}}
     >
       <div className="container-custom">
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             {agency?.logo_url ? (
-              // Use img tag for base64 data URLs, works better than Next Image
               <img 
                 src={agency.logo_url} 
                 alt={agency.name || 'Logo'} 
@@ -92,7 +105,7 @@ export default function Navigation() {
             )}
             <span 
               className="text-xl font-bold transition-colors"
-              style={{ color: scrolled ? scrolledTextColor : '#ffffff' }}
+              style={{ color: textColor }}
             >
               {agency?.name || 'Rocket Solutions'}
             </span>
@@ -105,14 +118,12 @@ export default function Navigation() {
                 key={link.name}
                 href={link.href}
                 className="font-medium transition-colors"
-                style={{ 
-                  color: scrolled ? scrolledTextMuted : 'rgba(255,255,255,0.9)'
-                }}
+                style={{ color: textMuted }}
                 onMouseEnter={(e) => {
-                  e.target.style.color = scrolled ? primaryColor : '#ffffff'
+                  e.target.style.color = showSolidBg ? primaryColor : '#ffffff'
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.color = scrolled ? scrolledTextMuted : 'rgba(255,255,255,0.9)'
+                  e.target.style.color = textMuted
                 }}
               >
                 {link.name}
@@ -131,7 +142,7 @@ export default function Navigation() {
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden p-2 transition-colors"
-            style={{ color: scrolled ? scrolledTextColor : '#ffffff' }}
+            style={{ color: textColor }}
           >
             {isOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
           </button>
