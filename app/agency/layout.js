@@ -76,9 +76,10 @@ function DashboardLayoutInner({ children }) {
     return null // Will redirect via useEffect
   }
 
-  // Use auth agency data, with branding fallbacks
+  // Use auth agency for data, brandingAgency (from middleware cookie) for styling
   const c = agency
-  const primaryColor = c.primary_color || brandingAgency?.primary_color || '#fa8820'
+  const primaryColor = brandingAgency?.primary_color || c.primary_color || '#c1ff72'
+  const logoBackgroundColor = brandingAgency?.logo_background_color || c.logo_background_color
 
   const getMarketingSiteUrl = () => {
     if (c.marketing_domain) {
@@ -93,8 +94,8 @@ function DashboardLayoutInner({ children }) {
     { name: 'Settings', href: '/agency/settings', icon: FaCog },
   ]
 
-  // Sidebar styling based on logo background color
-  const sidebarBg = c.logo_background_color || '#020202'
+  // Sidebar styling based on logo background color (from branding context)
+  const sidebarBg = logoBackgroundColor || '#171515'
   const isLight = isLightColor(sidebarBg)
   const textColor = isLight ? '#000000' : '#ffffff'
   const mutedTextColor = isLight ? '#1f2937' : '#9ca3af'
