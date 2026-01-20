@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { FaRocket, FaEnvelope, FaLock, FaSpinner, FaEye, FaEyeSlash } from 'react-icons/fa'
+import { FaEnvelope, FaLock, FaSpinner, FaEye, FaEyeSlash } from 'react-icons/fa'
 import { useAgency } from '../../../lib/AgencyContext'
 
 export default function AgencyLoginPage() {
@@ -12,8 +11,7 @@ export default function AgencyLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isCheckingSession, setIsCheckingSession] = useState(true)
-  const [isRedirecting, setIsRedirecting] = useState(false)
+  const [pageReady, setPageReady] = useState(false)
   
   // Password change state
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false)
@@ -21,30 +19,32 @@ export default function AgencyLoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [agencyId, setAgencyId] = useState(null)
   
-  const router = useRouter()
+  // Use ref to prevent any renders after redirect starts
+  const isRedirecting = useRef(false)
   
   // Get agency branding from middleware cookie
   const { agency, isLoading: agencyLoading } = useAgency()
 
   // Check if already logged in - only run once on mount
   useEffect(() => {
-    const checkSession = () => {
+    // Small delay to ensure localStorage is accessible
+    const timer = setTimeout(() => {
       const existingAgencyId = localStorage.getItem('agencyId')
       if (existingAgencyId) {
-        setIsRedirecting(true)
-        router.replace('/agency/dashboard')
+        isRedirecting.current = true
+        window.location.href = '/agency/dashboard'
       } else {
-        setIsCheckingSession(false)
+        setPageReady(true)
       }
-    }
+    }, 50)
     
-    // Small delay to ensure localStorage is accessible
-    const timer = setTimeout(checkSession, 50)
     return () => clearTimeout(timer)
-  }, []) // Empty dependency - only run once
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
+    if (isRedirecting.current) return
+    
     setError('')
     setIsLoading(true)
 
@@ -64,25 +64,31 @@ export default function AgencyLoginPage() {
       }
 
       if (data.requiresPasswordChange) {
-        // First time login - need to set password
         setAgencyId(data.agencyId)
         setRequiresPasswordChange(true)
         setIsLoading(false)
         return
       }
 
-      // Success - store session and redirect
+      // Success - store session and redirect immediately
+      // Use ref to prevent any re-renders, keep loading spinner visible
+      isRedirecting.current = true
       localStorage.setItem('agencyId', data.agencyId)
-      setIsRedirecting(true)
-      router.replace('/agency/dashboard')
+      window.location.href = '/agency/dashboard'
+      // Don't setIsLoading(false) - keep spinner visible during redirect
+      
     } catch (err) {
-      setError('An unexpected error occurred')
-      setIsLoading(false)
+      if (!isRedirecting.current) {
+        setError('An unexpected error occurred')
+        setIsLoading(false)
+      }
     }
   }
 
   const handleSetPassword = async (e) => {
     e.preventDefault()
+    if (isRedirecting.current) return
+    
     setError('')
 
     if (newPassword.length < 6) {
@@ -115,18 +121,21 @@ export default function AgencyLoginPage() {
         return
       }
 
-      // Success - store session and redirect
+      // Success - redirect immediately
+      isRedirecting.current = true
       localStorage.setItem('agencyId', agencyId)
-      setIsRedirecting(true)
-      router.replace('/agency/dashboard')
+      window.location.href = '/agency/dashboard'
+      
     } catch (err) {
-      setError('An unexpected error occurred')
-      setIsLoading(false)
+      if (!isRedirecting.current) {
+        setError('An unexpected error occurred')
+        setIsLoading(false)
+      }
     }
   }
 
-  // Show loading while checking session, loading agency, or redirecting
-  if (isCheckingSession || agencyLoading || isRedirecting) {
+  // Show loading while checking session or loading agency
+  if (!pageReady || agencyLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
         <FaSpinner className="animate-spin text-4xl text-white" />
@@ -192,7 +201,8 @@ export default function AgencyLoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@agency.com"
                     required
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                    disabled={isLoading}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
                     style={{ '--tw-ring-color': primaryColor }}
                   />
                 </div>
@@ -210,7 +220,8 @@ export default function AgencyLoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                    disabled={isLoading}
+                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
                     style={{ '--tw-ring-color': primaryColor }}
                   />
                   <button
@@ -226,10 +237,8 @@ export default function AgencyLoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                className="w-full py-3 text-white rounded-lg font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 style={{ backgroundColor: primaryColor }}
-                onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-                onMouseLeave={(e) => e.target.style.opacity = '1'}
               >
                 {isLoading ? (
                   <>
@@ -269,7 +278,8 @@ export default function AgencyLoginPage() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="At least 6 characters"
                     required
-                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                    disabled={isLoading}
+                    className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent disabled:bg-gray-50"
                     style={{ '--tw-ring-color': primaryColor }}
                   />
                   <button
@@ -294,7 +304,8 @@ export default function AgencyLoginPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Confirm your password"
                     required
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                    disabled={isLoading}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent disabled:bg-gray-50"
                     style={{ '--tw-ring-color': primaryColor }}
                   />
                 </div>
@@ -303,10 +314,8 @@ export default function AgencyLoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                className="w-full py-3 text-white rounded-lg font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 style={{ backgroundColor: primaryColor }}
-                onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-                onMouseLeave={(e) => e.target.style.opacity = '1'}
               >
                 {isLoading ? (
                   <>
@@ -324,7 +333,6 @@ export default function AgencyLoginPage() {
             <Link 
               href="/" 
               className="text-sm text-gray-500 hover:underline"
-              style={{ '--hover-color': primaryColor }}
             >
               ← Back to home
             </Link>
