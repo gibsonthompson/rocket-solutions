@@ -4,19 +4,31 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { FaCheckCircle, FaGlobe, FaRocket, FaSpinner, FaCopy, FaCheck, FaCog } from 'react-icons/fa'
-import Image from 'next/image'
 import Confetti from 'react-confetti'
+import { useAgency } from '../../lib/AgencyContext'
 
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
   const companyId = searchParams.get('company_id')
   
+  const { agency } = useAgency()
+  
   const [loading, setLoading] = useState(true)
   const [companyData, setCompanyData] = useState(null)
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 })
   const [showConfetti, setShowConfetti] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  // Agency branding
+  const agencyLogo = agency?.logo_url
+  const agencyName = agency?.name || 'Tapstack'
+  const agencyPrimaryColor = agency?.primary_color || '#f97316' // orange-500 fallback
+
+  // Determine base domain for URLs
+  const baseDomain = agency?.marketing_domain && agency?.domain_verified
+    ? agency.marketing_domain
+    : 'gorocketsolutions.com'
 
   useEffect(() => {
     // Clear preview data from session storage
@@ -67,14 +79,14 @@ export default function CheckoutSuccessPage() {
     }
   }
 
-  // Build URLs based on company data
+  // Build URLs based on company data and agency domain
   const subdomain = companyData?.company_slug
   const tempPassword = companyData?.temp_password
   const dashboardUrl = subdomain 
-    ? `https://${subdomain}.gorocketsolutions.com/dashboard`
+    ? `https://${subdomain}.${baseDomain}/dashboard`
     : null
   const siteUrl = subdomain
-    ? `https://${subdomain}.gorocketsolutions.com`
+    ? `https://${subdomain}.${baseDomain}`
     : null
 
   if (loading) {
@@ -90,12 +102,20 @@ export default function CheckoutSuccessPage() {
             ease: 'easeInOut' 
           }}
         >
-          <Image
-            src="/logo.png"
-            alt="Rocket Solutions"
-            width={80}
-            height={80}
-          />
+          {agencyLogo ? (
+            <img 
+              src={agencyLogo} 
+              alt={agencyName}
+              className="w-20 h-20 object-contain"
+            />
+          ) : (
+            <div 
+              className="w-20 h-20 rounded-2xl flex items-center justify-center text-white text-3xl font-bold"
+              style={{ backgroundColor: agencyPrimaryColor }}
+            >
+              {agencyName.charAt(0)}
+            </div>
+          )}
         </motion.div>
       </div>
     )
@@ -137,17 +157,21 @@ export default function CheckoutSuccessPage() {
 
         {/* Site URL display */}
         {siteUrl && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-            <p className="text-sm text-blue-600 mb-1">Your website is live at:</p>
+          <div 
+            className="border rounded-xl p-4 mb-6"
+            style={{ backgroundColor: `${agencyPrimaryColor}08`, borderColor: `${agencyPrimaryColor}40` }}
+          >
+            <p className="text-sm mb-1" style={{ color: agencyPrimaryColor }}>Your website is live at:</p>
             <a 
               href={siteUrl} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-blue-700 font-semibold hover:underline break-all"
+              className="font-semibold hover:underline break-all"
+              style={{ color: agencyPrimaryColor }}
             >
               {siteUrl.replace('https://', '')}
             </a>
-            <p className="text-xs text-blue-500 mt-2">
+            <p className="text-xs mt-2" style={{ color: `${agencyPrimaryColor}cc` }}>
               ⏱️ New sites may take 2-5 minutes to fully activate. If it doesn't load, wait a moment and refresh.
             </p>
           </div>
@@ -193,8 +217,11 @@ export default function CheckoutSuccessPage() {
           
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <FaRocket className="text-orange-500 text-sm" />
+              <div 
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${agencyPrimaryColor}20` }}
+              >
+                <FaRocket className="text-sm" style={{ color: agencyPrimaryColor }} />
               </div>
               <div>
                 <p className="font-medium text-gray-800">Your site is live!</p>
@@ -205,8 +232,11 @@ export default function CheckoutSuccessPage() {
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <FaCog className="text-orange-500 text-sm" />
+              <div 
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${agencyPrimaryColor}20` }}
+              >
+                <FaCog className="text-sm" style={{ color: agencyPrimaryColor }} />
               </div>
               <div>
                 <p className="font-medium text-gray-800">Customize everything</p>
@@ -217,8 +247,11 @@ export default function CheckoutSuccessPage() {
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <FaGlobe className="text-orange-500 text-sm" />
+              <div 
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${agencyPrimaryColor}20` }}
+              >
+                <FaGlobe className="text-sm" style={{ color: agencyPrimaryColor }} />
               </div>
               <div>
                 <p className="font-medium text-gray-800">Custom domain (optional)</p>
@@ -234,7 +267,8 @@ export default function CheckoutSuccessPage() {
           {dashboardUrl ? (
             <a
               href={dashboardUrl}
-              className="block w-full py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors text-center"
+              className="block w-full py-4 text-white rounded-xl font-semibold hover:opacity-90 transition-opacity text-center"
+              style={{ backgroundColor: agencyPrimaryColor }}
             >
               Go to Dashboard
             </a>

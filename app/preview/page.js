@@ -48,11 +48,16 @@ export default function PreviewPage() {
   const initializedRef = useRef(false)
   const apiCallComplete = useRef(false)
 
-  // Build preview URL based on agency's custom domain
+  // Agency branding (available immediately for loading screen)
+  const agencyLogo = agency?.logo_url
+  const agencyName = agency?.name || 'Tapstack'
+  const agencyPrimaryColor = agency?.primary_color || '#3B82F6'
+
+  // Build preview URL - use agency domain if verified, otherwise fallback to Vercel URL
   const previewUrl = companySlug
     ? (agency?.marketing_domain && agency?.domain_verified
         ? `https://${companySlug}.${agency.marketing_domain}?slug=${companySlug}`
-        : `https://${companySlug}.gorocketsolutions.com?slug=${companySlug}`)
+        : `https://service-business-platform.vercel.app?slug=${companySlug}`)
     : null
 
   // Dynamic pricing from agency (stored in cents, convert to dollars)
@@ -257,7 +262,20 @@ export default function PreviewPage() {
             transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
             className="mb-8"
           >
-            <Image src="/logo.png" alt="Rocket Solutions" width={80} height={80} className="mx-auto" />
+            {agencyLogo ? (
+              <img 
+                src={agencyLogo} 
+                alt={agencyName} 
+                className="w-20 h-20 mx-auto object-contain"
+              />
+            ) : (
+              <div 
+                className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-white text-3xl font-bold"
+                style={{ backgroundColor: agencyPrimaryColor }}
+              >
+                {agencyName.charAt(0)}
+              </div>
+            )}
           </motion.div>
           
           <div className="space-y-3 text-left mb-6">
@@ -281,18 +299,22 @@ export default function PreviewPage() {
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", stiffness: 300 }}
                       >
-                        <FaCheckCircle className="text-green-500 text-lg" />
+                        <FaCheckCircle className="text-lg" style={{ color: agencyPrimaryColor }} />
                       </motion.div>
                     ) : isCurrent ? (
-                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      <div 
+                        className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin"
+                        style={{ borderColor: agencyPrimaryColor, borderTopColor: 'transparent' }}
+                      />
                     ) : (
                       <div className="w-4 h-4 rounded-full border-2 border-gray-600" />
                     )}
                   </div>
                   
-                  <span className={`text-sm font-medium ${
-                    isComplete ? 'text-green-400' : isCurrent ? 'text-white' : 'text-gray-500'
-                  }`}>
+                  <span 
+                    className={`text-sm font-medium ${isCurrent ? 'text-white' : isPending ? 'text-gray-500' : ''}`}
+                    style={isComplete ? { color: agencyPrimaryColor } : {}}
+                  >
                     {step.text}
                   </span>
                 </motion.div>
@@ -302,7 +324,8 @@ export default function PreviewPage() {
           
           <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
             <motion.div
-              className="h-full bg-gradient-to-r from-blue-500 to-green-500"
+              className="h-full"
+              style={{ backgroundColor: agencyPrimaryColor }}
               initial={{ width: "0%" }}
               animate={{ width: `${((completedSteps.length) / LOADING_STEPS.length) * 100}%` }}
               transition={{ duration: 0.3 }}
@@ -322,7 +345,8 @@ export default function PreviewPage() {
           <p className="text-gray-600 mb-6">{error}</p>
           <button 
             onClick={() => router.push('/onboarding')}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            className="px-6 py-3 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: agencyPrimaryColor }}
           >
             Start Onboarding
           </button>

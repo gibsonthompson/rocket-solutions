@@ -197,7 +197,7 @@ export default function OnboardingPage() {
     logo: null,
     logoPreview: null,
     logoBackgroundColor: null,
-    primaryColor: '#ee352b',
+    primaryColor: '#6B7280',
     extractedColors: [],
     tagline: '',
     
@@ -209,10 +209,13 @@ export default function OnboardingPage() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const fileInputRef = useRef(null)
 
+  // Agency branding
+  const agencyPrimaryColor = agency?.primary_color || '#3B82F6'
+
   // Convert agency prices from cents to dollars
-  const starterPrice = agency.price_starter ? Math.round(agency.price_starter / 100) : 49
-  const proPrice = agency.price_pro ? Math.round(agency.price_pro / 100) : 99
-  const growthPrice = agency.price_growth ? Math.round(agency.price_growth / 100) : 149
+  const starterPrice = agency?.price_starter ? Math.round(agency.price_starter / 100) : 49
+  const proPrice = agency?.price_pro ? Math.round(agency.price_pro / 100) : 99
+  const growthPrice = agency?.price_growth ? Math.round(agency.price_growth / 100) : 149
 
   // Restore form data from sessionStorage on mount
   useEffect(() => {
@@ -312,7 +315,7 @@ export default function OnboardingPage() {
     updateField('logoPreview', null)
     updateField('logoBackgroundColor', null)
     updateField('extractedColors', [])
-    updateField('primaryColor', '#ee352b')
+    updateField('primaryColor', agencyPrimaryColor)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -384,7 +387,7 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan: formData.plan,
-          agencyId: agency.id, // Pass agency ID for proper linking
+          agencyId: agency?.id, // Pass agency ID for proper linking
           siteData: {
             businessName: formData.businessName,
             industry: formData.industry === 'Other' ? formData.otherIndustry : formData.industry,
@@ -434,7 +437,7 @@ export default function OnboardingPage() {
             <div className="flex items-start gap-3">
               <div 
                 className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: agency.primary_color }}
+                style={{ backgroundColor: agencyPrimaryColor }}
               >
                 <FaDownload className="text-white text-xl" />
               </div>
@@ -456,7 +459,7 @@ export default function OnboardingPage() {
               <button 
                 onClick={installPWA}
                 className="flex-1 py-2 text-white rounded-lg font-medium"
-                style={{ backgroundColor: agency.primary_color }}
+                style={{ backgroundColor: agencyPrimaryColor }}
               >
                 Install
               </button>
@@ -469,24 +472,23 @@ export default function OnboardingPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-white">
-            {agency.logo_url ? (
-              <Image 
+            {agency?.logo_url ? (
+              <img 
                 src={agency.logo_url} 
-                alt={agency.name} 
+                alt={agency?.name || 'Agency'} 
                 width={44} 
                 height={44}
                 className="object-contain"
               />
             ) : (
-              <Image 
-                src="/logo.png" 
-                alt={agency.name} 
-                width={44} 
-                height={44}
-                className="object-contain"
-              />
+              <div 
+                className="w-11 h-11 rounded-lg flex items-center justify-center text-white text-xl font-bold"
+                style={{ backgroundColor: agencyPrimaryColor }}
+              >
+                {(agency?.name || 'T').charAt(0)}
+              </div>
             )}
-            <span className="text-xl font-bold">{agency.name}</span>
+            <span className="text-xl font-bold">{agency?.name || 'Tapstack'}</span>
           </div>
         </div>
 
@@ -502,7 +504,7 @@ export default function OnboardingPage() {
                       ? 'text-white scale-110'
                       : 'bg-white/20 text-white/50'
                 }`}
-                style={step === s.id ? { backgroundColor: agency.primary_color } : {}}
+                style={step === s.id ? { backgroundColor: agencyPrimaryColor } : {}}
               >
                 {step > s.id ? <FaCheck /> : <s.icon />}
               </div>
@@ -541,7 +543,8 @@ export default function OnboardingPage() {
                         value={formData.businessName}
                         onChange={(e) => updateField('businessName', e.target.value)}
                         placeholder="e.g., Smith's Junk Removal"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': agencyPrimaryColor }}
                       />
                     </div>
 
@@ -558,12 +561,12 @@ export default function OnboardingPage() {
                             className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                               formData.industry === industry
                                 ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-gray-200 hover:border-primary/50'
+                                : 'border-gray-200 hover:border-gray-400'
                             }`}
                             style={formData.industry === industry ? { 
-                              borderColor: agency.primary_color,
-                              backgroundColor: `${agency.primary_color}15`,
-                              color: agency.primary_color
+                              borderColor: agencyPrimaryColor,
+                              backgroundColor: `${agencyPrimaryColor}15`,
+                              color: agencyPrimaryColor
                             } : {}}
                           >
                             {industry}
@@ -582,7 +585,8 @@ export default function OnboardingPage() {
                           value={formData.otherIndustry}
                           onChange={(e) => updateField('otherIndustry', e.target.value)}
                           placeholder="Enter your industry"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                          style={{ '--tw-ring-color': agencyPrimaryColor }}
                         />
                       </div>
                     )}
@@ -606,7 +610,8 @@ export default function OnboardingPage() {
                         value={formData.ownerName}
                         onChange={(e) => updateField('ownerName', e.target.value)}
                         placeholder="John Smith"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': agencyPrimaryColor }}
                       />
                     </div>
 
@@ -619,7 +624,8 @@ export default function OnboardingPage() {
                         value={formData.email}
                         onChange={(e) => updateField('email', e.target.value)}
                         placeholder="john@example.com"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': agencyPrimaryColor }}
                       />
                     </div>
 
@@ -632,7 +638,8 @@ export default function OnboardingPage() {
                         value={formData.phone}
                         onChange={(e) => updateField('phone', e.target.value)}
                         placeholder="(555) 123-4567"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': agencyPrimaryColor }}
                       />
                     </div>
                   </div>
@@ -656,7 +663,8 @@ export default function OnboardingPage() {
                           value={formData.city}
                           onChange={(e) => updateField('city', e.target.value)}
                           placeholder="Los Angeles"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                          style={{ '--tw-ring-color': agencyPrimaryColor }}
                         />
                       </div>
                       <div>
@@ -669,7 +677,8 @@ export default function OnboardingPage() {
                           onChange={(e) => updateField('state', e.target.value.toUpperCase())}
                           placeholder="CA"
                           maxLength={2}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent uppercase"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent uppercase"
+                          style={{ '--tw-ring-color': agencyPrimaryColor }}
                         />
                       </div>
                     </div>
@@ -681,7 +690,8 @@ export default function OnboardingPage() {
                       <select
                         value={formData.serviceRadius}
                         onChange={(e) => updateField('serviceRadius', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': agencyPrimaryColor }}
                       >
                         <option value="10">10 miles</option>
                         <option value="25">25 miles</option>
@@ -699,7 +709,8 @@ export default function OnboardingPage() {
                         onChange={(e) => updateField('additionalCities', e.target.value)}
                         placeholder="List other cities you serve, separated by commas"
                         rows={3}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+                        style={{ '--tw-ring-color': agencyPrimaryColor }}
                       />
                     </div>
                   </div>
@@ -722,8 +733,7 @@ export default function OnboardingPage() {
                       {!formData.logoPreview ? (
                         <div 
                           onClick={() => fileInputRef.current?.click()}
-                          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-all"
-                          style={{ '--hover-border': agency.primary_color }}
+                          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-all"
                         >
                           <FaUpload className="mx-auto text-3xl text-gray-400 mb-3" />
                           <p className="text-gray-600 font-medium">Click to upload your logo</p>
@@ -812,7 +822,8 @@ export default function OnboardingPage() {
                         value={formData.tagline}
                         onChange={(e) => updateField('tagline', e.target.value)}
                         placeholder="e.g., Fast, Reliable, Affordable"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': agencyPrimaryColor }}
                       />
                     </div>
 
@@ -937,11 +948,11 @@ export default function OnboardingPage() {
                             className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
                               formData.plan === plan.id
                                 ? 'border-primary bg-primary/5'
-                                : 'border-gray-200 hover:border-primary/50'
+                                : 'border-gray-200 hover:border-gray-400'
                             }`}
                             style={formData.plan === plan.id ? {
-                              borderColor: agency.primary_color,
-                              backgroundColor: `${agency.primary_color}10`
+                              borderColor: agencyPrimaryColor,
+                              backgroundColor: `${agencyPrimaryColor}10`
                             } : {}}
                           >
                             <div className="flex justify-between items-center">
@@ -951,7 +962,7 @@ export default function OnboardingPage() {
                                   {plan.popular && (
                                     <span 
                                       className="text-white text-xs px-2 py-0.5 rounded-full"
-                                      style={{ backgroundColor: agency.primary_color }}
+                                      style={{ backgroundColor: agencyPrimaryColor }}
                                     >
                                       Popular
                                     </span>
@@ -990,16 +1001,16 @@ export default function OnboardingPage() {
             {step < STEPS.length ? (
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-lg"
-                style={{ backgroundColor: agency.primary_color }}
+                className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: agencyPrimaryColor }}
               >
                 Continue <FaArrowRight />
               </button>
             ) : (
               <button
                 onClick={handleSubmit}
-                className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-lg"
-                style={{ backgroundColor: agency.primary_color }}
+                className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: agencyPrimaryColor }}
               >
                 Launch My Website <FaRocket />
               </button>
@@ -1009,7 +1020,7 @@ export default function OnboardingPage() {
 
         {/* Help text */}
         <p className="text-center text-white/50 text-sm mt-6">
-          Questions? Email us at {agency.support_email || 'support@example.com'}
+          Questions? Email us at {agency?.support_email || 'support@tapstack.dev'}
         </p>
       </div>
     </div>
