@@ -6,7 +6,7 @@ import {
   FaSave, FaSpinner, FaCamera, FaPalette, FaBuilding, 
   FaEnvelope, FaPhone, FaDollarSign, FaLock, FaEye, FaEyeSlash,
   FaChevronDown, FaChevronUp, FaStripe, FaCheckCircle, FaExclamationCircle,
-  FaExternalLinkAlt, FaGlobe, FaCopy
+  FaExternalLinkAlt, FaGlobe, FaCopy, FaInfoCircle
 } from 'react-icons/fa'
 import { Toaster, toast } from 'react-hot-toast'
 import { useAgencyAuth } from '../../../lib/AgencyAuthContext'
@@ -152,6 +152,13 @@ export default function AgencySettingsPage() {
       return
     }
     
+    // Basic domain validation
+    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/
+    if (!domainRegex.test(domainInput.trim())) {
+      toast.error('Please enter a valid domain (e.g., yourdomain.com)')
+      return
+    }
+    
     setIsSavingDomain(true)
     try {
       const response = await fetch('/api/agency/domain', {
@@ -159,7 +166,7 @@ export default function AgencySettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           agencyId: agency.id, 
-          domain: domainInput 
+          domain: domainInput.trim().toLowerCase()
         })
       })
       
@@ -173,7 +180,7 @@ export default function AgencySettingsPage() {
       setDomainInput('')  // Clear input after successful save
       setDomainVerified(data.domain_verified)
       setDnsConfigured(data.dns_configured)
-      toast.success('Domain saved! Configure your DNS to continue.')
+      toast.success('Domain saved! Update your nameservers to continue.')
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -196,7 +203,7 @@ export default function AgencySettingsPage() {
       const data = await response.json()
       
       if (!response.ok) {
-        throw new Error(data.error || 'Verification failed')
+        throw new Error(data.error || 'Verification failed. Make sure your nameservers are updated.')
       }
       
       setDomainVerified(true)
@@ -210,7 +217,7 @@ export default function AgencySettingsPage() {
   }
 
   const handleRemoveDomain = async () => {
-    if (!confirm('Remove custom domain? Your customers will use gorocketsolutions.com instead.')) {
+    if (!confirm('Remove custom domain? Your customers will use the default domain instead.')) {
       return
     }
     
@@ -585,7 +592,7 @@ export default function AgencySettingsPage() {
           )}
         </div>
 
-        {/* Custom Domain Section */}
+        {/* Custom Domain Section - UPDATED WITH NAMESERVER INSTRUCTIONS */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandPrimaryColor}15` }}>
@@ -603,6 +610,7 @@ export default function AgencySettingsPage() {
               <span className="text-gray-500">Loading domain settings...</span>
             </div>
           ) : domainVerified ? (
+            // VERIFIED STATE
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
                 <FaCheckCircle className="text-green-500 text-xl flex-shrink-0" />
@@ -618,89 +626,116 @@ export default function AgencySettingsPage() {
               </div>
             </div>
           ) : customDomain ? (
+            // PENDING VERIFICATION STATE - NAMESERVER INSTRUCTIONS
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <FaExclamationCircle className="text-yellow-500 text-xl flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-yellow-800">DNS Configuration Required</p>
-                  <p className="text-sm text-yellow-600">Add both DNS records below, then click Verify</p>
+                  <p className="font-medium text-yellow-800">Nameserver Update Required</p>
+                  <p className="text-sm text-yellow-600">Update your domain&apos;s nameservers, then click Verify</p>
                 </div>
               </div>
               
               <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-sm font-medium text-gray-700 mb-3">Add these DNS records in your domain provider (GoDaddy, Namecheap, Cloudflare, etc.):</p>
+                <p className="text-sm font-medium text-gray-700 mb-3">
+                  Go to your domain registrar (GoDaddy, Namecheap, Google Domains, etc.) and change the <strong>nameservers</strong> to:
+                </p>
                 
-                {/* Record 1: A Record for root domain */}
-                <div className="mb-4 pb-4 border-b border-gray-200">
-                  <p className="text-xs font-medium text-gray-500 mb-2">Record 1: For your marketing site ({customDomain})</p>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
                     <div>
-                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Type</p>
-                      <code className="px-2 py-1 bg-white rounded border border-gray-200">A</code>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Nameserver 1</p>
+                      <code className="text-sm font-medium text-gray-800">ns1.vercel-dns.com</code>
                     </div>
+                    <button 
+                      onClick={() => copyToClipboard('ns1.vercel-dns.com')} 
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                    >
+                      <FaCopy className="text-sm" />
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
                     <div>
-                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Name / Host</p>
-                      <div className="flex items-center gap-2">
-                        <code className="px-2 py-1 bg-white rounded border border-gray-200">@</code>
-                        <button onClick={() => copyToClipboard('@')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
-                      </div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Nameserver 2</p>
+                      <code className="text-sm font-medium text-gray-800">ns2.vercel-dns.com</code>
                     </div>
-                    <div>
-                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Value / Target</p>
-                      <div className="flex items-center gap-2">
-                        <code className="px-2 py-1 bg-white rounded border border-gray-200">216.198.79.1</code>
-                        <button onClick={() => copyToClipboard('216.198.79.1')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
-                      </div>
-                    </div>
+                    <button 
+                      onClick={() => copyToClipboard('ns2.vercel-dns.com')} 
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                    >
+                      <FaCopy className="text-sm" />
+                    </button>
                   </div>
                 </div>
                 
-                {/* Record 2: CNAME for customer subdomains */}
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-2">Record 2: For customer sites (*.{customDomain})</p>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Type</p>
-                      <code className="px-2 py-1 bg-white rounded border border-gray-200">CNAME</code>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Name / Host</p>
-                      <div className="flex items-center gap-2">
-                        <code className="px-2 py-1 bg-white rounded border border-gray-200">*</code>
-                        <button onClick={() => copyToClipboard('*')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Value / Target</p>
-                      <div className="flex items-center gap-2">
-                        <code className="px-2 py-1 bg-white rounded border border-gray-200 text-xs">52f2ec7ccc7d7f3b.vercel-dns-017.com</code>
-                        <button onClick={() => copyToClipboard('52f2ec7ccc7d7f3b.vercel-dns-017.com')} className="text-gray-400 hover:text-gray-600"><FaCopy className="text-xs" /></button>
-                      </div>
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex gap-2">
+                    <FaInfoCircle className="text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-700">
+                      <p className="font-medium mb-1">Important Notes:</p>
+                      <ul className="list-disc list-inside space-y-1 text-blue-600">
+                        <li>This gives Vercel control of your domain&apos;s DNS</li>
+                        <li>If you have email (MX records), you&apos;ll need to re-add them in Vercel after verification</li>
+                        <li>Changes can take up to 48 hours to propagate (usually 5-30 minutes)</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
-                
-                <p className="text-xs text-gray-400 mt-4">DNS changes can take up to 48 hours to propagate, but usually complete within minutes.</p>
               </div>
               
               <div className="flex items-center gap-3">
                 <code className="flex-1 px-4 py-2.5 bg-gray-100 rounded-lg text-sm text-gray-700">{customDomain}</code>
-                <button onClick={handleVerifyDomain} disabled={isVerifyingDomain} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: brandPrimaryColor }}>
+                <button 
+                  onClick={handleVerifyDomain} 
+                  disabled={isVerifyingDomain} 
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" 
+                  style={{ backgroundColor: brandPrimaryColor }}
+                >
                   {isVerifyingDomain ? <><FaSpinner className="animate-spin" /> Verifying...</> : <>Verify Domain</>}
                 </button>
-                <button onClick={handleRemoveDomain} className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Remove</button>
+                <button 
+                  onClick={handleRemoveDomain} 
+                  className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Remove
+                </button>
               </div>
             </div>
           ) : (
+            // NO DOMAIN STATE - INPUT
             <div className="space-y-4">
               <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <p className="text-gray-600 text-sm">Add a custom domain so your marketing site and customer websites use your own brand.</p>
-                <p className="text-gray-500 text-xs mt-2">You&apos;ll need access to your domain&apos;s DNS settings to complete setup.</p>
+                <ul className="mt-3 space-y-2 text-sm text-gray-500">
+                  <li className="flex items-center gap-2">
+                    <FaCheckCircle className="text-gray-400" />
+                    Your marketing site at <strong>yourdomain.com</strong>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <FaCheckCircle className="text-gray-400" />
+                    Customer sites at <strong>customername.yourdomain.com</strong>
+                  </li>
+                </ul>
+                <p className="text-gray-400 text-xs mt-3">You&apos;ll need to update your domain&apos;s nameservers to complete setup.</p>
               </div>
               
               <div className="flex items-center gap-3">
-                <input type="text" value={domainInput} onChange={(e) => setDomainInput(e.target.value)} placeholder="yourdomain.com" className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ '--tw-ring-color': brandPrimaryColor }} />
-                <button onClick={handleSaveDomain} disabled={isSavingDomain || !domainInput.trim()} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: brandPrimaryColor }}>
+                <input 
+                  type="text" 
+                  value={domainInput} 
+                  onChange={(e) => setDomainInput(e.target.value.toLowerCase())} 
+                  placeholder="yourdomain.com" 
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" 
+                  style={{ '--tw-ring-color': brandPrimaryColor }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveDomain()}
+                />
+                <button 
+                  onClick={handleSaveDomain} 
+                  disabled={isSavingDomain || !domainInput.trim()} 
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90 disabled:opacity-50" 
+                  style={{ backgroundColor: brandPrimaryColor }}
+                >
                   {isSavingDomain ? <><FaSpinner className="animate-spin" /> Saving...</> : <>Add Domain</>}
                 </button>
               </div>
@@ -727,6 +762,7 @@ export default function AgencySettingsPage() {
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
             
             <div className="flex-1">
+              <p className="text-xs text-gray-500 mb-2">💡 <strong>Tip:</strong> Use a PNG with a transparent background for best results.</p>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-medium text-gray-700">Nav background color (auto-detected):</span>
               </div>
@@ -734,7 +770,6 @@ export default function AgencySettingsPage() {
                 <div className="w-8 h-8 rounded border border-gray-200" style={{ backgroundColor: logoBackgroundColor || '#ffffff' }} />
                 <code className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">{logoBackgroundColor || 'rgb(255, 255, 255)'}</code>
               </div>
-              <p className="text-xs text-gray-400 mt-2">This color is used for the navigation background when scrolled.</p>
             </div>
           </div>
         </div>
