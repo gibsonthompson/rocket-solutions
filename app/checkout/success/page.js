@@ -5,30 +5,19 @@ import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { FaCheckCircle, FaGlobe, FaRocket, FaSpinner, FaCopy, FaCheck, FaCog } from 'react-icons/fa'
 import Confetti from 'react-confetti'
-import { useAgency } from '../../../lib/AgencyContext'
 
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
   const companyId = searchParams.get('company_id')
-  
-  const { agency } = useAgency()
+  const agencyIdParam = searchParams.get('agency_id')
   
   const [loading, setLoading] = useState(true)
   const [companyData, setCompanyData] = useState(null)
+  const [agencyData, setAgencyData] = useState(null)
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 })
   const [showConfetti, setShowConfetti] = useState(false)
   const [copied, setCopied] = useState(false)
-
-  // Agency branding
-  const agencyLogo = agency?.logo_url
-  const agencyName = agency?.name || 'Tapstack'
-  const agencyPrimaryColor = agency?.primary_color || '#f97316' // orange-500 fallback
-
-  // Determine base domain for URLs
-  const baseDomain = agency?.marketing_domain && agency?.domain_verified
-    ? agency.marketing_domain
-    : 'gorocketsolutions.com'
 
   useEffect(() => {
     // Clear preview data from session storage
@@ -37,16 +26,44 @@ export default function CheckoutSuccessPage() {
     // Set window size for confetti
     setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     
-    // Fetch company data to get subdomain
-    if (companyId) {
-      fetchCompanyData()
-    } else {
-      // No company ID - just show generic success
-      setTimeout(() => {
+    // Fetch data
+    const fetchData = async () => {
+      try {
+        // Fetch agency data first (for branding during loading)
+        if (agencyIdParam) {
+          const agencyRes = await fetch(`/api/agency/${agencyIdParam}`)
+          if (agencyRes.ok) {
+            const agency = await agencyRes.json()
+            setAgencyData(agency)
+          }
+        }
+
+        // Fetch company data
+        if (companyId) {
+          const companyRes = await fetch(`/api/company/${companyId}`)
+          if (companyRes.ok) {
+            const company = await companyRes.json()
+            setCompanyData(company)
+            
+            // If no agency from URL param, try to get from company record
+            if (!agencyIdParam && company.agency_id) {
+              const agencyRes = await fetch(`/api/agency/${company.agency_id}`)
+              if (agencyRes.ok) {
+                const agency = await agencyRes.json()
+                setAgencyData(agency)
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
         setLoading(false)
         setShowConfetti(true)
-      }, 1500)
+      }
     }
+
+    fetchData()
     
     // Stop confetti after 5 seconds
     const confettiTimer = setTimeout(() => setShowConfetti(false), 6500)
@@ -54,22 +71,7 @@ export default function CheckoutSuccessPage() {
     return () => {
       clearTimeout(confettiTimer)
     }
-  }, [companyId])
-
-  const fetchCompanyData = async () => {
-    try {
-      const response = await fetch(`/api/company/${companyId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setCompanyData(data)
-      }
-    } catch (error) {
-      console.error('Error fetching company:', error)
-    } finally {
-      setLoading(false)
-      setShowConfetti(true)
-    }
-  }
+  }, [companyId, agencyIdParam])
 
   const handleCopyPassword = () => {
     if (companyData?.temp_password) {
@@ -78,6 +80,16 @@ export default function CheckoutSuccessPage() {
       setTimeout(() => setCopied(false), 2000)
     }
   }
+
+  // Agency branding (from fetched data, not domain)
+  const agencyLogo = agencyData?.logo_url
+  const agencyName = agencyData?.name || 'Tapstack'
+  const agencyPrimaryColor = agencyData?.primary_color || '#f97316' // orange-500 fallback
+
+  // Determine base domain for URLs
+  const baseDomain = agencyData?.marketing_domain && agencyData?.domain_verified
+    ? agencyData.marketing_domain
+    : 'gorocketsolutions.com'
 
   // Build URLs based on company data and agency domain
   const subdomain = companyData?.company_slug

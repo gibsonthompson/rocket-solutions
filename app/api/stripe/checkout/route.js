@@ -36,7 +36,7 @@ export async function POST(request) {
     const headersList = headers()
     const host = headersList.get('host')
     const protocol = headersList.get('x-forwarded-proto') || 'https'
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`
+    const baseUrl = `${protocol}://${host}` // Always use request host, not env var
 
     // Get company ID from siteData
     const companyId = siteData.siteId
@@ -49,12 +49,13 @@ export async function POST(request) {
     let stripeAccountId = null
     let priceAmount = null
     let agency = null
+    let successBaseUrl = baseUrl // Default to request host
 
-    // If agencyId provided, get agency's Stripe Connect account and pricing
+    // If agencyId provided, get agency's Stripe Connect account, pricing, and domain
     if (agencyId) {
       const { data: agencyData, error: agencyError } = await supabase
         .from('agencies')
-        .select('stripe_account_id, stripe_onboarding_complete, price_starter, price_pro, price_growth')
+        .select('stripe_account_id, stripe_onboarding_complete, price_starter, price_pro, price_growth, marketing_domain, domain_verified, slug')
         .eq('id', agencyId)
         .single()
 
@@ -73,6 +74,14 @@ export async function POST(request) {
           growth: agency.price_growth || 19900,
         }
         priceAmount = agencyPrices[plan]
+
+        // Determine agency's domain for success redirect
+        // Priority: verified marketing_domain > subdomain on tapstack.dev > request host
+        if (agency.marketing_domain && agency.domain_verified) {
+          successBaseUrl = `https://${agency.marketing_domain}`
+        } else if (agency.slug) {
+          successBaseUrl = `https://${agency.slug}.tapstack.dev`
+        }
       }
     }
 
@@ -85,6 +94,7 @@ export async function POST(request) {
       // ═══════════════════════════════════════════════════════════════
       
       console.log('Creating checkout with Stripe Connect:', stripeAccountId)
+      console.log('Success URL base:', successBaseUrl)
 
       // Create customer on connected account first (required for Accounts V2)
       const customer = await stripe.customers.create(
@@ -133,8 +143,8 @@ export async function POST(request) {
               quantity: 1,
             },
           ],
-          success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&company_id=${companyId}&connected=true`,
-          cancel_url: `${baseUrl}/preview?cancelled=true`,
+          success_url: `${successBaseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&company_id=${companyId}&agency_id=${agencyId}`,
+          cancel_url: `${successBaseUrl}/preview?cancelled=true`,
           metadata: {
             company_id: companyId,
             company_slug: siteData.companySlug,
@@ -183,6 +193,7 @@ export async function POST(request) {
       }
 
       console.log('Creating standard platform checkout')
+      console.log('Success URL base:', successBaseUrl)
 
       // Create customer first (required for Accounts V2 in test mode)
       const customer = await stripe.customers.create({
@@ -204,8 +215,8 @@ export async function POST(request) {
             quantity: 1,
           },
         ],
-        success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&company_id=${companyId}`,
-        cancel_url: `${baseUrl}/preview?cancelled=true`,
+        success_url: `${successBaseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&company_id=${companyId}${agencyId ? `&agency_id=${agencyId}` : ''}`,
+        cancel_url: `${successBaseUrl}/preview?cancelled=true`,
         metadata: {
           company_id: companyId,
           company_slug: siteData.companySlug,

@@ -48,11 +48,6 @@ export default function PreviewPage() {
   const initializedRef = useRef(false)
   const apiCallComplete = useRef(false)
 
-  // Agency branding (available immediately for loading screen)
-  const agencyLogo = agency?.logo_url
-  const agencyName = agency?.name || 'Tapstack'
-  const agencyPrimaryColor = agency?.primary_color || '#3B82F6'
-
   // Build preview URL - use agency domain if verified, otherwise fallback to Vercel URL
   const previewUrl = companySlug
     ? (agency?.marketing_domain && agency?.domain_verified
@@ -262,19 +257,15 @@ export default function PreviewPage() {
             transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
             className="mb-8"
           >
-            {agencyLogo ? (
+            {/* Dynamic agency logo, fallback to generic */}
+            {agency?.logo_url ? (
               <img 
-                src={agencyLogo} 
-                alt={agencyName} 
+                src={agency.logo_url} 
+                alt={agency?.name || 'Agency'} 
                 className="w-20 h-20 mx-auto object-contain"
               />
             ) : (
-              <div 
-                className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-white text-3xl font-bold"
-                style={{ backgroundColor: agencyPrimaryColor }}
-              >
-                {agencyName.charAt(0)}
-              </div>
+              <Image src="/logo.png" alt="Logo" width={80} height={80} className="mx-auto" />
             )}
           </motion.div>
           
@@ -299,22 +290,18 @@ export default function PreviewPage() {
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", stiffness: 300 }}
                       >
-                        <FaCheckCircle className="text-lg" style={{ color: agencyPrimaryColor }} />
+                        <FaCheckCircle className="text-green-500 text-lg" />
                       </motion.div>
                     ) : isCurrent ? (
-                      <div 
-                        className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin"
-                        style={{ borderColor: agencyPrimaryColor, borderTopColor: 'transparent' }}
-                      />
+                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <div className="w-4 h-4 rounded-full border-2 border-gray-600" />
                     )}
                   </div>
                   
-                  <span 
-                    className={`text-sm font-medium ${isCurrent ? 'text-white' : isPending ? 'text-gray-500' : ''}`}
-                    style={isComplete ? { color: agencyPrimaryColor } : {}}
-                  >
+                  <span className={`text-sm font-medium ${
+                    isComplete ? 'text-green-400' : isCurrent ? 'text-white' : 'text-gray-500'
+                  }`}>
                     {step.text}
                   </span>
                 </motion.div>
@@ -324,8 +311,7 @@ export default function PreviewPage() {
           
           <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
             <motion.div
-              className="h-full"
-              style={{ backgroundColor: agencyPrimaryColor }}
+              className="h-full bg-gradient-to-r from-blue-500 to-green-500"
               initial={{ width: "0%" }}
               animate={{ width: `${((completedSteps.length) / LOADING_STEPS.length) * 100}%` }}
               transition={{ duration: 0.3 }}
@@ -345,8 +331,7 @@ export default function PreviewPage() {
           <p className="text-gray-600 mb-6">{error}</p>
           <button 
             onClick={() => router.push('/onboarding')}
-            className="px-6 py-3 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: agencyPrimaryColor }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
           >
             Start Onboarding
           </button>
