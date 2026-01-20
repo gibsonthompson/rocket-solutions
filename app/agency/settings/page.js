@@ -61,7 +61,7 @@ export default function AgencySettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false)
 
   // Use branding agency for primary color styling
-  const brandPrimaryColor = brandingAgency?.primary_color || '#fa8820'
+  const brandPrimaryColor = brandingAgency?.primary_color || '#c1ff72'
 
   // Check for Stripe Connect return status
   useEffect(() => {
@@ -242,25 +242,6 @@ export default function AgencySettingsPage() {
     toast.success('Copied to clipboard!')
   }
 
-  // Initialize form with agency data
-  useEffect(() => {
-    if (agency && !isInitialized) {
-      setLogoPreview(agency.logo_url || null)
-      setLogoBackgroundColor(agency.logo_background_color || '')
-      setPrimaryColor(agency.primary_color || '#fa8820')
-      setSecondaryColor(agency.secondary_color || '#ff6b6b')
-      setBrandPalette(agency.brand_palette || [])
-      setName(agency.name || '')
-      setTagline(agency.tagline || '')
-      setSupportEmail(agency.support_email || '')
-      setSupportPhone(agency.support_phone || '')
-      setPriceStarter(agency.price_starter ? (agency.price_starter / 100).toString() : '49')
-      setPricePro(agency.price_pro ? (agency.price_pro / 100).toString() : '99')
-      setPriceGrowth(agency.price_growth ? (agency.price_growth / 100).toString() : '199')
-      setIsInitialized(true)
-    }
-  }, [agency, isInitialized])
-
   const rgbToHex = (r, g, b) => {
     const toHex = (n) => {
       const clamped = Math.max(0, Math.min(255, n))
@@ -367,6 +348,36 @@ export default function AgencySettingsPage() {
     
     return colors
   }
+
+  // Initialize form with agency data
+  useEffect(() => {
+    if (agency && !isInitialized) {
+      setLogoPreview(agency.logo_url || null)
+      setLogoBackgroundColor(agency.logo_background_color || '')
+      setPrimaryColor(agency.primary_color || '#fa8820')
+      setSecondaryColor(agency.secondary_color || '#ff6b6b')
+      setBrandPalette(agency.brand_palette || [])
+      setName(agency.name || '')
+      setTagline(agency.tagline || '')
+      setSupportEmail(agency.support_email || '')
+      setSupportPhone(agency.support_phone || '')
+      setPriceStarter(agency.price_starter ? (agency.price_starter / 100).toString() : '49')
+      setPricePro(agency.price_pro ? (agency.price_pro / 100).toString() : '99')
+      setPriceGrowth(agency.price_growth ? (agency.price_growth / 100).toString() : '199')
+      setIsInitialized(true)
+      
+      // Auto-detect background color if logo exists but no background color saved
+      if (agency.logo_url && !agency.logo_background_color) {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => {
+          const bgColor = detectLogoBackground(img)
+          setLogoBackgroundColor(bgColor.css)
+        }
+        img.src = agency.logo_url
+      }
+    }
+  }, [agency, isInitialized])
 
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0]
