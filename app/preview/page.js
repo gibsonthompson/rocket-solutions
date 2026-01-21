@@ -505,10 +505,16 @@ export default function PreviewPage() {
         })
       })
 
-      const { url, error } = await response.json()
-      if (error) throw new Error(error)
+      const data = await response.json()
+      if (data.error) {
+        if (data.code === 'AGENCY_STRIPE_NOT_CONNECTED') {
+          alert('This agency is not set up to accept payments yet. Please contact them directly to get started.')
+          return
+        }
+        throw new Error(data.error)
+      }
       
-      window.location.href = url
+      window.location.href = data.url
     } catch (err) {
       console.error('Checkout error:', err)
       alert('Checkout failed. Please try again.')

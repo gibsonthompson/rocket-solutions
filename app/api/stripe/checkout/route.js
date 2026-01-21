@@ -12,7 +12,7 @@ function getSupabase() {
   )
 }
 
-// Default price IDs (used when agency doesn't have Stripe Connect)
+// Default price IDs (used for direct platform sales only - no agency)
 const DEFAULT_PRICE_IDS = {
   starter: process.env.STRIPE_PRICE_STARTER,
   pro: process.env.STRIPE_PRICE_PRO,
@@ -59,35 +59,44 @@ export async function POST(request) {
         .eq('id', agencyId)
         .single()
 
-      if (!agencyError && agencyData) {
-        agency = agencyData
-        
-        // Only use Connect if agency has completed onboarding
-        if (agency.stripe_onboarding_complete && agency.stripe_account_id) {
-          stripeAccountId = agency.stripe_account_id
-        }
+      if (agencyError || !agencyData) {
+        return NextResponse.json({ error: 'Agency not found' }, { status: 404 })
+      }
 
-        // Get agency's custom pricing (stored in cents)
-        const agencyPrices = {
-          starter: agency.price_starter || 4900,
-          pro: agency.price_pro || 9900,
-          growth: agency.price_growth || 19900,
-        }
-        priceAmount = agencyPrices[plan]
+      agency = agencyData
+      
+      // ═══════════════════════════════════════════════════════════════
+      // BLOCK CHECKOUT IF AGENCY HASN'T CONNECTED STRIPE
+      // ═══════════════════════════════════════════════════════════════
+      if (!agency.stripe_onboarding_complete || !agency.stripe_account_id) {
+        return NextResponse.json({ 
+          error: 'This agency is not ready to accept payments yet. Please contact the agency directly.',
+          code: 'AGENCY_STRIPE_NOT_CONNECTED'
+        }, { status: 400 })
+      }
 
-        // Determine agency's domain for success redirect
-        // Priority: verified marketing_domain > subdomain on tapstack.dev > request host
-        if (agency.marketing_domain && agency.domain_verified) {
-          successBaseUrl = `https://${agency.marketing_domain}`
-        } else if (agency.slug) {
-          successBaseUrl = `https://${agency.slug}.tapstack.dev`
-        }
+      stripeAccountId = agency.stripe_account_id
+
+      // Get agency's custom pricing (stored in cents)
+      const agencyPrices = {
+        starter: agency.price_starter || 4900,
+        pro: agency.price_pro || 9900,
+        growth: agency.price_growth || 19900,
+      }
+      priceAmount = agencyPrices[plan]
+
+      // Determine agency's domain for success redirect
+      // Priority: verified marketing_domain > subdomain on tapstack.dev > request host
+      if (agency.marketing_domain && agency.domain_verified) {
+        successBaseUrl = `https://${agency.marketing_domain}`
+      } else if (agency.slug) {
+        successBaseUrl = `https://${agency.slug}.tapstack.dev`
       }
     }
 
     let session
 
-    if (stripeAccountId && priceAmount) {
+    if (stripeAccountId && priceAmount && agencyId) {
       // ═══════════════════════════════════════════════════════════════
       // AGENCY CHECKOUT (Stripe Connect - Direct Charges)
       // Payment goes directly to agency's connected account
@@ -182,17 +191,17 @@ export async function POST(request) {
         })
         .eq('id', companyId)
 
-    } else {
+    } else if (!agencyId) {
       // ═══════════════════════════════════════════════════════════════
-      // PLATFORM CHECKOUT (No Connect - Direct to platform)
-      // Used when agency hasn't connected Stripe or for direct sales
+      // PLATFORM CHECKOUT (No Agency - Direct platform sales only)
+      // Only allowed when there's no agencyId (e.g., gorocketsolutions.com)
       // ═══════════════════════════════════════════════════════════════
 
       if (!DEFAULT_PRICE_IDS[plan]) {
         return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
       }
 
-      console.log('Creating standard platform checkout')
+      console.log('Creating standard platform checkout (no agency)')
       console.log('Success URL base:', successBaseUrl)
 
       // Create customer first (required for Accounts V2 in test mode)
@@ -215,7 +224,7 @@ export async function POST(request) {
             quantity: 1,
           },
         ],
-        success_url: `${successBaseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&company_id=${companyId}${agencyId ? `&agency_id=${agencyId}` : ''}`,
+        success_url: `${successBaseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&company_id=${companyId}`,
         cancel_url: `${successBaseUrl}/preview?cancelled=true`,
         metadata: {
           company_id: companyId,
@@ -232,7 +241,6 @@ export async function POST(request) {
           logo_background_color: siteData.logoBackgroundColor || '#020202',
           service_radius: siteData.serviceRadius?.toString() || '25',
           plan,
-          agency_id: agencyId || null,
         },
         subscription_data: {
           metadata: {
@@ -241,6 +249,9 @@ export async function POST(request) {
           },
         },
       })
+    } else {
+      // This shouldn't happen, but just in case
+      return NextResponse.json({ error: 'Invalid checkout configuration' }, { status: 400 })
     }
 
     return NextResponse.json({ url: session.url })
